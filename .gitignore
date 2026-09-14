@@ -1,0 +1,9 @@
+node_modules/
+.env
+server/.env
+server/uploads/*.txt
+!server/uploads/.gitkeep
+extension/api-base.js
+dist/
+.DS_Store
+

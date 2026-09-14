@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Job Summary Tracker</h1>
+      <div class="label">Current page</div>
+      <div id="title" class="title">Loading…</div>
+      <div id="url" class="url"></div>
+      <button id="summary" class="iconBtn">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l1.6 6.4L20 10l-6.4 1.6L12 18l-1.6-6.4L4 10l6.4-1.6z"/></svg>
+        Generate Summary
+      </button>
+      <div id="status" class="status"></div>
+      <a id="dashboard" class="dashboard iconBtn" href="http://127.0.0.1:5173" target="_blank" rel="noreferrer">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-8"/></svg>
+        Open dashboard
+      </a>
+    </div>
+    <script src="api-base.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
