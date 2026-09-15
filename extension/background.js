@@ -1,3 +1,228 @@
+try {
+  importScripts('api-base.js');
+} catch {
+  // api-base.js is optional; it holds the public tunnel URL when present.
+}
+
+const DEFAULT_API = 'http://127.0.0.1:3001/api';
+const ALARM = 'keep-alive';
+const running = new Set();
+const controllers = new Map();
+
+function stateKey(tabId) {
+  return `tab:${tabId}`;
+}
+
+function extractJobPage() {
+  const selectors = [
+    '[data-testid="jobDescriptionText"]',
+    '[data-testid="job-description"]',
+    '.jobs-description',
+    '.jobs-description__content',
+    '.jobsearch-JobComponent-description',
+    '#jobDescriptionText',
+    '.job-description',
+    '#job-description',
+    '[class*="job-description"]',
+    '[class*="JobDescription"]',
+    'article',
+    'main',
+    '[role="main"]'
+  ];
+
+  const seen = new Set();
+  const chunks = [];
+  for (const selector of selectors) {
+    for (const node of document.querySelectorAll(selector)) {
+      const text = (node.innerText || '').trim();
+      if (text.length < 80 || seen.has(text.slice(0, 200))) continue;
+      seen.add(text.slice(0, 200));
+      chunks.push(text);
+    }
+    if (chunks.join('\n\n').length > 2500) break;
+  }
+
+  const pageText = (chunks.join('\n\n').trim() || document.body?.innerText || '').replace(/\n{3,}/g, '\n\n').trim();
+  return {
+    title: document.title || '',
+    url: window.location.href,
+    pageText
+  };
+}
+
+async function apiBase() {
+  const stored = await chrome.storage.sync.get(['apiBase']);
+  if (stored.apiBase) return stored.apiBase;
+  const publicUrl = String(globalThis.JOB_TRACKER_PUBLIC_URL || '').replace(/\/+$/, '');
+  if (publicUrl) return `${publicUrl}/api`;
+  return DEFAULT_API;
+}
+
+async function readState(tabId) {
+  const key = stateKey(tabId);
+  const stored = await chrome.storage.session.get(key);
+  return stored[key] || { tabId, busy: false, phase: 'idle', message: '', runningCount: 0 };
+}
+
+async function writeState(tabId, patch) {
+  const current = await readState(tabId);
+  const next = { ...current, ...patch, tabId, runningCount: running.size };
+  await chrome.storage.session.set({ [stateKey(tabId)]: next });
+  await syncRunningCounts();
+  return next;
+}
+
+async function syncRunningCounts() {
+  const all = await chrome.storage.session.get(null);
+  const updates = {};
+  for (const [key, value] of Object.entries(all)) {
+    if (!key.startsWith('tab:') || !value || typeof value !== 'object') continue;
+    if (value.runningCount === running.size) continue;
+    updates[key] = { ...value, runningCount: running.size };
+  }
+  if (Object.keys(updates).length) await chrome.storage.session.set(updates);
+}
+
+function keepAlive() {
+  if (running.size) chrome.alarms.create(ALARM, { periodInMinutes: 1 });
+  else chrome.alarms.clear(ALARM);
+}
+
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch(() => {});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM && running.size === 0) chrome.alarms.clear(ALARM);
+});
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'sidepanel') return;
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  controllers.get(tabId)?.abort();
+  controllers.delete(tabId);
+  running.delete(tabId);
+  chrome.storage.session.remove(stateKey(tabId));
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'GET_STATE') {
+    readState(message.tabId).then((state) => sendResponse({ ...state, runningCount: running.size }));
+    return true;
+  }
+  if (message?.type === 'GENERATE') {
+    generateForTab(message.tabId);
+    sendResponse({ ok: true });
+  }
+  if (message?.type === 'STOP') {
+    stopForTab(message.tabId);
+    sendResponse({ ok: true });
+  }
+  return false;
+});
+
+function stopForTab(tabId) {
+  if (!tabId) return;
+  const controller = controllers.get(tabId);
+  if (controller) controller.abort();
+  else {
+    running.delete(tabId);
+    writeState(tabId, { busy: false, phase: 'stopped', message: 'Stopped.' });
+  }
+}
+
+function throwIfStopped(controller) {
+  if (controller?.signal.aborted) {
+    const error = new Error('Stopped.');
+    error.name = 'AbortError';
+    throw error;
+  }
+}
+
+async function generateForTab(tabId) {
+  if (!tabId || running.has(tabId)) return;
+  const controller = new AbortController();
+  running.add(tabId);
+  controllers.set(tabId, controller);
+  keepAlive();
+
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    throwIfStopped(controller);
+    if (!/^https?:/.test(tab.url || '')) {
+      throw new Error('Open a normal job web page first.');
+    }
+
+    await writeState(tabId, {
+      busy: true,
+      phase: 'running',
+      title: tab.title || 'Unknown page',
+      url: tab.url || '',
+      message: 'Reading job page…'
+    });
+
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: extractJobPage
+    });
+    throwIfStopped(controller);
+
+    if (!result?.pageText || result.pageText.length < 100) {
+      throw new Error('Could not read enough text from this page.');
+    }
+
+    await writeState(tabId, {
+      busy: true,
+      phase: 'running',
+      title: result.title || tab.title || 'Unknown page',
+      url: result.url || tab.url || '',
+      message: `Analyzing job and company…\n${result.title || tab.title || ''}`
+    });
+
+    const base = await apiBase();
+    const response = await fetch(`${base}/summaries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: result.url, pageText: result.pageText }),
+      signal: controller.signal
+    });
+    throwIfStopped(controller);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok && response.status !== 409) {
+      throw new Error(data.error || `Request failed (${response.status})`);
+    }
+
+    const application = data.application;
+    if (!application?.company) {
+      throw new Error(data.error || 'The API did not return a saved application. Check that the server and Ollama are running.');
+    }
+    const fileName = data.file?.name || application.fileName;
+    await writeState(tabId, {
+      busy: false,
+      phase: 'done',
+      message: response.status === 409
+        ? `Already saved:\n${application.company}\n${application.jobTitle}`
+        : `Saved on server:\n${application.company}\n${application.jobTitle}\n${fileName}`
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      await writeState(tabId, { busy: false, phase: 'stopped', message: 'Stopped.' });
+      return;
+    }
+    const hint = /Failed to fetch|NetworkError|ERR_CONNECTION/i.test(error.message)
+      ? '\n\nixBrowser cannot reach 127.0.0.1 through the proxy. Use the public tunnel URL from npm run tunnel, or add 127.0.0.1 to this profile’s proxy bypass list and reopen the profile.'
+      : '';
+    await writeState(tabId, {
+      busy: false,
+      phase: 'error',
+      message: `Error: ${error.message}${hint}`
+    });
+  } finally {
+    controllers.delete(tabId);
+    running.delete(tabId);
+    keepAlive();
+    await syncRunningCounts();
+  }
+}

@@ -4,6 +4,7 @@ import { buildSummaryFilename } from '../src/utils/sanitizeFilename.js';
 import { renderSummary } from '../src/services/summary.service.js';
 import { eachLocalDay, parseRange, toLocalYmd } from '../src/utils/dateRange.js';
 import { normalizeJobUrl } from '../src/utils/normalizeUrl.js';
+import { jobPlatformFromUrl } from '../src/utils/jobPlatform.js';
 
 test('builds Windows-safe required filename', () => {
   assert.equal(
@@ -41,4 +42,16 @@ test('strips tracking params from job URLs', () => {
     normalizeJobUrl('https://www.indeed.com/viewjob?jk=abc&utm_source=share#section'),
     'https://www.indeed.com/viewjob?jk=abc'
   );
+});
+
+test('maps job links to known platforms', () => {
+  assert.deepEqual(jobPlatformFromUrl('https://www.indeed.com/viewjob?jk=abc'), { domain: 'indeed.com', name: 'Indeed' });
+  assert.deepEqual(jobPlatformFromUrl('https://www.dice.com/job-detail/123'), { domain: 'dice.com', name: 'Dice' });
+  assert.deepEqual(jobPlatformFromUrl('https://uk.indeed.com/viewjob?jk=xyz'), { domain: 'indeed.com', name: 'Indeed' });
+  assert.deepEqual(jobPlatformFromUrl('https://jobs.lever.co/acme/role'), { domain: 'lever.co', name: 'Lever' });
+});
+
+test('keeps unknown job hosts as their domain', () => {
+  assert.deepEqual(jobPlatformFromUrl('https://careers.acme.com/jobs/42'), { domain: 'careers.acme.com', name: 'careers.acme.com' });
+  assert.deepEqual(jobPlatformFromUrl('not-a-url'), { domain: 'unknown', name: 'Unknown' });
 });

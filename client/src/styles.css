@@ -282,6 +282,38 @@ a, .link {
   border-bottom: 1px solid #242a36;
 }
 
+.platformRow {
+  display: grid;
+  grid-template-columns: minmax(96px, 1.1fr) minmax(72px, 1.4fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #242a36;
+}
+
+.platformMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.platformMeta span { font-weight: 600; }
+.platformMeta small { color: #8b97ab; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.platformTrack {
+  height: 8px;
+  border-radius: 99px;
+  background: #1c2330;
+  overflow: hidden;
+}
+
+.platformFill {
+  height: 100%;
+  border-radius: 99px;
+  background: #3b82f6;
+}
+
 .innerTable { overflow: auto; margin-top: 10px; }
 .innerTable table { min-width: 480px; }
 .innerTable th, .innerTable td { padding: 10px 8px; }

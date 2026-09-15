@@ -1,5 +1,6 @@
 import { Application } from '../models/Application.js';
 import { eachLocalDay, formatLongDate, parseRange, rangeCaption, toLocalYmd } from '../utils/dateRange.js';
+import { jobPlatformFromUrl } from '../utils/jobPlatform.js';
 
 const STATUSES = ['applied', 'intro', 'tech', 'offer'];
 
@@ -14,7 +15,7 @@ export async function overview(req, res, next) {
     if (start) match.appliedDate = { $gte: start, $lte: end };
 
     const rows = await Application.find(match)
-      .select('status appliedDate company primaryTechnology')
+      .select('status appliedDate company jobUrl primaryTechnology')
       .lean();
 
     let timelineStart = start;
@@ -36,6 +37,7 @@ export async function overview(req, res, next) {
 
     const status = emptyCounts();
     const companies = new Map();
+    const platforms = new Map();
     const technologies = new Map();
 
     for (const row of rows) {
@@ -52,6 +54,14 @@ export async function overview(req, res, next) {
       const company = companies.get(companyName);
       company[st] += 1;
       company.bids += 1;
+
+      const platformInfo = jobPlatformFromUrl(row.jobUrl);
+      if (!platforms.has(platformInfo.domain)) {
+        platforms.set(platformInfo.domain, { ...platformInfo, ...emptyCounts(), bids: 0 });
+      }
+      const platform = platforms.get(platformInfo.domain);
+      platform[st] += 1;
+      platform.bids += 1;
 
       const techName = row.primaryTechnology || 'Not specified';
       technologies.set(techName, (technologies.get(techName) || 0) + 1);
@@ -77,6 +87,14 @@ export async function overview(req, res, next) {
       .map((c) => ({ name: c.name, replies: c.intro + c.tech + c.offer }))
       .sort((a, b) => b.replies - a.replies);
 
+    const platformRows = [...platforms.values()]
+      .map((p) => ({
+        ...p,
+        share: total ? Number(((p.bids / total) * 100).toFixed(1)) : 0,
+        replyRate: p.bids ? Number((((p.intro + p.tech + p.offer) / p.bids) * 100).toFixed(1)) : 0
+      }))
+      .sort((a, b) => b.bids - a.bids || a.name.localeCompare(b.name));
+
     res.json({
       range: key,
       caption: `${total} bid${total === 1 ? '' : 's'} from ${rangeCaption(key, timelineStart, end)}`,
@@ -93,6 +111,7 @@ export async function overview(req, res, next) {
       timeline,
       companies: companyRows,
       repliesByCompany,
+      platforms: platformRows,
       technologies: [...technologies.entries()]
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)

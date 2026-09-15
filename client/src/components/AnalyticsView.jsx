@@ -146,6 +146,66 @@ export function AnalyticsView({ analytics, range, onRange }) {
 
       <section className="grid2">
         <div className="panel">
+          <h3>Job platforms</h3>
+          <p className="muted small">Bids grouped by the job link domain, such as indeed.com and dice.com.</p>
+          <div className="funnel">
+            {(analytics?.platforms || []).map((row) => (
+              <div className="platformRow" key={row.domain}>
+                <div className="platformMeta">
+                  <span>{row.name}</span>
+                  <small>{row.domain}</small>
+                </div>
+                <div className="platformTrack" aria-hidden="true">
+                  <div className="platformFill" style={{ width: `${row.share || 0}%` }} />
+                </div>
+                <b>{row.bids}</b>
+              </div>
+            ))}
+            {!analytics?.platforms?.length ? <p className="emptyInline">No job links in this range yet.</p> : null}
+          </div>
+        </div>
+
+        <div className="panel">
+          <h3>Platform breakdown</h3>
+          <p className="muted small">Reply rate counts intro, tech, and offers on that platform.</p>
+          <div className="innerTable">
+            <table>
+              <thead>
+                <tr>
+                  <th>Platform</th>
+                  <th>Domain</th>
+                  <th>Bids</th>
+                  <th>Share</th>
+                  <th>Intro</th>
+                  <th>Tech</th>
+                  <th>Offer</th>
+                  <th>Reply rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(analytics?.platforms || []).map((row) => (
+                  <tr key={row.domain}>
+                    <td>{row.name}</td>
+                    <td>{row.domain}</td>
+                    <td>{row.bids}</td>
+                    <td>{row.share}%</td>
+                    <td>{row.intro}</td>
+                    <td>{row.tech}</td>
+                    <td>{row.offer}</td>
+                    <td>{row.replyRate}%</td>
+                  </tr>
+                ))}
+                {!analytics?.platforms?.length ? (
+                  <tr><td colSpan="8" className="empty">No bids in this range yet.</td></tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid2">
+        <div className="panel">
           <h3>Replies by company</h3>
           <p className="muted small">Intro, tech, and offer counts in this range.</p>
           {(analytics?.repliesByCompany || []).every((row) => row.replies === 0) ? (

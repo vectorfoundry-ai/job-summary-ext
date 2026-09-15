@@ -23,7 +23,7 @@ h1 { font-size: 16px; margin: 0; }
   color: #9eabc0;
   word-break: break-all;
 }
-button {
+button#summary {
   width: 100%;
   border: 0;
   border-radius: 8px;
@@ -33,7 +33,25 @@ button {
   font-weight: 700;
   cursor: pointer;
 }
-button:disabled { opacity: .65; cursor: wait; }
+button#summary:disabled { opacity: .65; cursor: wait; }
+.secondaryActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.secondary {
+  width: 100%;
+  border: 1px solid #2b323f;
+  border-radius: 8px;
+  padding: 10px;
+  background: #151922;
+  color: #f4f6fa;
+  font-weight: 600;
+  cursor: pointer;
+}
+.secondary.stop { color: #ff8b8b; }
+.secondary:disabled { opacity: .4; cursor: default; }
 .iconBtn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .icon { display: block; flex-shrink: 0; }
 .status { font-size: 13px; line-height: 1.45; margin-top: 14px; color: #cdd5e3; white-space: pre-wrap; flex: 1; }
