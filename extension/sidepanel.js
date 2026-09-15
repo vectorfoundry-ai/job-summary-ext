@@ -57,11 +57,20 @@ async function apiBase() {
   return DEFAULT_API;
 }
 
-(async () => {
+async function showActiveTab() {
   const tab = await currentTab();
   titleEl.textContent = tab?.title || 'Unknown page';
   urlEl.textContent = tab?.url || '';
-})();
+}
+
+showActiveTab();
+chrome.tabs.onActivated.addListener(() => {
+  showActiveTab();
+});
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  if (!tab.active || (!changeInfo.url && !changeInfo.title && changeInfo.status !== 'complete')) return;
+  showActiveTab();
+});
 
 button.addEventListener('click', async () => {
   button.disabled = true;
@@ -79,7 +88,7 @@ button.addEventListener('click', async () => {
       throw new Error('Could not read enough text from this page.');
     }
 
-    statusEl.textContent = 'Analyzing job and company…';
+    statusEl.textContent = `Analyzing job and company…\n${result.title || tab.title || ''}`;
     const base = await apiBase();
     const response = await fetch(`${base}/summaries`, {
       method: 'POST',

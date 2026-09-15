@@ -1,19 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Job Summary Tracker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Capture the current job page, generate a structured summary, and save it to the tracker.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "tabs"],
   "host_permissions": [
-    "http://127.0.0.1:3001/*",
-    "http://127.0.0.1:5173/*",
-    "http://localhost:3001/*",
-    "http://localhost:5173/*",
-    "https://*.trycloudflare.com/*",
-    "https://*.loca.lt/*"
+    "http://*/*",
+    "https://*/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Job Summary Tracker"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   }
 }

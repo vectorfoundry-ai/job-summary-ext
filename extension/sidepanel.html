@@ -2,11 +2,14 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="sidepanel.css">
   </head>
   <body>
     <div class="wrap">
-      <h1>Job Summary Tracker</h1>
+      <header>
+        <h1>Job Summary Tracker</h1>
+        <p class="hint">Stays open when you switch tabs</p>
+      </header>
       <div class="label">Current page</div>
       <div id="title" class="title">Loading…</div>
       <div id="url" class="url"></div>
@@ -21,6 +24,6 @@
       </a>
     </div>
     <script src="api-base.js"></script>
-    <script src="popup.js"></script>
+    <script src="sidepanel.js"></script>
   </body>
 </html>

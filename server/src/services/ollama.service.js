@@ -101,6 +101,10 @@ function ollamaError(error, baseUrl, model) {
   return new Error(`Ollama request failed: ${error.message}`);
 }
 
+function isRetryable(message) {
+  return /Cannot reach Ollama|ECONNRESET|fetch failed|model may still be loading|out-of-memory|failed to allocate|llama-server process has terminated|0xc0000409/i.test(message);
+}
+
 async function chat(baseUrl, body, timeoutMs) {
   const response = await fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
@@ -116,17 +120,31 @@ async function chat(baseUrl, body, timeoutMs) {
   return payload;
 }
 
+async function unloadModel(baseUrl, model) {
+  await fetch(`${baseUrl}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, keep_alive: 0 }),
+    signal: AbortSignal.timeout(15000)
+  }).catch(() => {});
+}
+
 export async function analyzeJob({ pageText, jobUrl }) {
   const baseUrl = (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
   const model = process.env.OLLAMA_MODEL || 'qwen3.5:4b';
   const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 180000);
+  const numCtx = Math.max(2048, Number(process.env.OLLAMA_NUM_CTX || 8192));
   const input = `Source URL: ${jobUrl}\n\nJOB PAGE TEXT:\n${pageText}`;
   const body = {
     model,
     stream: false,
     think: false,
+    keep_alive: '5m',
     format: schema,
-    options: { temperature: 0 },
+    options: {
+      temperature: 0,
+      num_ctx: numCtx
+    },
     messages: [
       { role: 'system', content: instructions },
       { role: 'user', content: input }
@@ -141,8 +159,8 @@ export async function analyzeJob({ pageText, jobUrl }) {
       return withDefaults(parseJsonContent(content));
     } catch (error) {
       lastError = error.status || error.statusCode ? error : ollamaError(error, baseUrl, model);
-      const retryable = /Cannot reach Ollama|ECONNRESET|fetch failed|model may still be loading/i.test(lastError.message);
-      if (!retryable || attempt === 3) throw lastError;
+      if (!isRetryable(lastError.message) || attempt === 3) throw lastError;
+      await unloadModel(baseUrl, model);
       await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
     }
   }

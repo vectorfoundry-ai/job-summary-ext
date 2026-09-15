@@ -2,7 +2,7 @@
 
 A focused job-application tracker with three pieces:
 
-- Chrome extension: reads the current job page URL and visible job description.
+- Chrome extension: a side panel that reads the current job page URL and visible job description. It stays open when you switch tabs.
 - Express API: analyzes the job with local Ollama, writes the required `.txt` summary, and saves metadata in MongoDB.
 - React dashboard: applications table plus analytics.
 
@@ -18,12 +18,12 @@ A focused job-application tracker with three pieces:
 
 1. Install Node 24, MongoDB, and [Ollama](https://ollama.com).
 2. Pull a model, for example `ollama pull qwen3.5:4b`.
-3. Copy `server/.env.example` to `server/.env` if needed. Default is `OLLAMA_URL=http://127.0.0.1:11434` and `OLLAMA_MODEL=qwen3.5:4b`.
+3. Copy `server/.env.example` to `server/.env` if needed. Default is `OLLAMA_URL=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3.5:4b`, and `OLLAMA_NUM_CTX=8192` (caps the model’s 256k context so llama-server does not run out of RAM).
 4. From the repo root run `npm run install:all`.
 5. Run `npm run dev`.
 6. Open `http://127.0.0.1:5173` for the dashboard (use this address in ixBrowser; `localhost` is proxied and will fail).
 6. In Chrome or ixBrowser, open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the `extension/` folder.
-7. Open a job posting and click **Generate Summary**.
+7. Open a job posting, click the extension icon to open the **side panel**, then click **Generate Summary**. You can switch tabs while it runs; the panel keeps its progress.
 
 ### ixBrowser
 
