@@ -1,3 +1,8 @@
+import { execFile as execFileCb } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFile = promisify(execFileCb);
+
 const schema = {
   type: 'object',
   properties: {
@@ -6,9 +11,8 @@ const schema = {
     compensation: { type: 'string' },
     location: { type: 'string' },
     jobType: { type: 'string' },
-    primaryLanguage: { type: 'string' },
-    primaryTechnology: { type: 'string' },
     requiredSkills: { type: 'array', items: { type: 'string' } },
+    softSkills: { type: 'array', items: { type: 'string' } },
     preferredSkills: { type: 'array', items: { type: 'string' } },
     companyFounded: { type: 'string' },
     approximateEmployeeCount: { type: 'string' },
@@ -16,8 +20,7 @@ const schema = {
   },
   required: [
     'jobTitle', 'company', 'compensation', 'location', 'jobType',
-    'primaryLanguage', 'primaryTechnology', 'requiredSkills',
-    'preferredSkills', 'companyFounded', 'approximateEmployeeCount',
+    'requiredSkills', 'softSkills', 'preferredSkills', 'companyFounded', 'approximateEmployeeCount',
     'companySummary'
   ],
   additionalProperties: false
@@ -28,21 +31,21 @@ const instructions = `You are an expert job-description analyzer.
 The job description is the primary source. Extract only defensible facts. Do not invent missing information. Do not use outside knowledge to fill gaps.
 
 Accurately distinguish:
+- Programming languages from spoken/human languages.
+- Technical skills from soft skills.
 - Required skills from preferred or bonus skills.
 - Core technologies from incidental tools.
 - Compensation from unrelated financial figures.
 - Job location from company headquarters.
 - Employment type from working schedule.
-- Primary technology from the broader tech stack.
 
 Field rules:
 - compensation: salary, hourly rate, range, equity, bonus, contract terms, expected hours, or "Not specified".
 - location: remote/hybrid/on-site status, city/state/country, geographic restrictions, timezone or working-hour requirements when stated.
 - jobType: full-time, part-time, contract, internship, temporary, 1099, W-2, etc.
-- primaryLanguage: the single most important programming language, or "Not specified". Never list more than one.
-- primaryTechnology: the single most important platform, framework, product, or technology emphasized by the role, or "Not specified". Never list more than one.
-- requiredSkills: concise list of genuinely required or clearly expected skills, languages, frameworks, databases, APIs, platforms, responsibilities, and technical competencies.
-- preferredSkills: preferred, bonus, nice-to-have, or secondary technologies and skills. Empty array if none are given.
+- requiredSkills: technical skills required or clearly expected: programming languages, frameworks, libraries, databases, APIs, clouds, tools, platforms, and technical competencies. Include programming languages here when stated. Do not put soft skills here.
+- softSkills: required or clearly expected interpersonal and professional skills, such as communication, collaboration, leadership, stakeholder management, mentoring, problem-solving, or ownership. Empty array if none are given.
+- preferredSkills: preferred, bonus, or nice-to-have skills. This list may include both technical skills and soft skills. Empty array if none are given.
 - companyFounded: year only if stated in the job description, otherwise "Not specified".
 - approximateEmployeeCount: range/count only if stated in the job description, otherwise "Not specified".
 - companySummary: one concise interview-ready paragraph based only on the job description: what the company does, who it serves, its products/services, business model or market position when available, and how this role supports the company's work. If the posting does not describe the company, return "Not specified". No citations, source lists, or markdown.
@@ -58,16 +61,16 @@ function withDefaults(data) {
     const text = String(value ?? '').trim();
     return text || 'Not specified';
   };
+  const skills = (value) => (Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : []);
   return {
     jobTitle: notSpecified(source.jobTitle),
     company: notSpecified(source.company),
     compensation: notSpecified(source.compensation),
     location: notSpecified(source.location),
     jobType: notSpecified(source.jobType),
-    primaryLanguage: notSpecified(source.primaryLanguage),
-    primaryTechnology: notSpecified(source.primaryTechnology),
-    requiredSkills: Array.isArray(source.requiredSkills) ? source.requiredSkills.filter(Boolean) : [],
-    preferredSkills: Array.isArray(source.preferredSkills) ? source.preferredSkills.filter(Boolean) : [],
+    requiredSkills: skills(source.requiredSkills),
+    softSkills: skills(source.softSkills),
+    preferredSkills: skills(source.preferredSkills),
     companyFounded: notSpecified(source.companyFounded),
     approximateEmployeeCount: notSpecified(source.approximateEmployeeCount),
     companySummary: notSpecified(source.companySummary)
@@ -153,11 +156,16 @@ async function unloadLoadedModels(baseUrl) {
   await Promise.all(models.map((item) => unloadModel(baseUrl, item.name || item.model)));
 }
 
+async function killOrphanLlamaServers() {
+  if (process.platform !== 'win32') return;
+  await execFile('taskkill', ['/IM', 'llama-server.exe', '/F']).catch(() => {});
+}
+
 export async function analyzeJob({ pageText, jobUrl, signal } = {}) {
   const baseUrl = (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
   const model = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
   const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 360000);
-  let numCtx = Math.max(1024, Number(process.env.OLLAMA_NUM_CTX || 2048));
+  let numCtx = Math.max(1024, Number(process.env.OLLAMA_NUM_CTX || 1024));
   const gpuEnv = process.env.OLLAMA_NUM_GPU;
   let numGpu = gpuEnv === undefined || gpuEnv === '' ? null : Number(gpuEnv);
   const source = String(pageText || '');
@@ -202,12 +210,13 @@ export async function analyzeJob({ pageText, jobUrl, signal } = {}) {
         numGpu = null;
         numCtx = Math.min(numCtx, 2048);
       } else if (isGpuMemoryError(lastError.message)) {
+        await killOrphanLlamaServers();
         numCtx = Math.min(numCtx, 1024);
         numGpu = null;
       } else {
         numCtx = Math.max(1024, Math.min(numCtx, 2048));
       }
-      await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+      await new Promise((resolve) => setTimeout(resolve, isGpuMemoryError(lastError.message) ? 4000 : attempt * 2000));
     }
   }
   throw lastError;

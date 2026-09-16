@@ -23,11 +23,19 @@ test('preserves readable spacing between company and role', () => {
 });
 
 test('renders exact required summary sections', () => {
-  const text = renderSummary({ jobTitle: 'Engineer', company: 'Acme', requiredSkills: ['Node.js', 'MongoDB'] });
+  const text = renderSummary({
+    jobTitle: 'Engineer',
+    company: 'Acme',
+    requiredSkills: ['Node.js', 'MongoDB'],
+    softSkills: ['Communication', 'Ownership']
+  });
   assert.match(text, /^Job Title: Engineer/);
   assert.match(text, /Company: Acme/);
   assert.match(text, /Salary \/ Compensation: Not specified/);
-  assert.match(text, /Required Skills \/ Tech Stack: Node.js; MongoDB/);
+  assert.match(text, /Technical Skills: Node.js; MongoDB/);
+  assert.match(text, /Soft Skills: Communication; Ownership/);
+  assert.match(text, /Preferred Skills: Not specified/);
+  assert.doesNotMatch(text, /Primary Technology/);
   assert.match(text, /What do you know about our company\?\n\nNot specified$/);
 });
 

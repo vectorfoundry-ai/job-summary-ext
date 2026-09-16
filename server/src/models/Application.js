@@ -27,6 +27,7 @@ const applicationSchema = new mongoose.Schema({
   primaryLanguage: { type: String, default: 'Not specified' },
   primaryTechnology: { type: String, default: 'Not specified' },
   requiredSkills: { type: [String], default: [] },
+  softSkills: { type: [String], default: [] },
   preferredSkills: { type: [String], default: [] },
   companyFounded: { type: String, default: 'Not specified' },
   approximateEmployeeCount: { type: String, default: 'Not specified' },

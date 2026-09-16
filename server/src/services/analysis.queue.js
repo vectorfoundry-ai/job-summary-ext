@@ -99,9 +99,9 @@ async function processOne(row) {
     current.compensation = analyzed.compensation;
     current.location = analyzed.location;
     current.jobType = analyzed.jobType;
-    current.primaryLanguage = analyzed.primaryLanguage;
-    current.primaryTechnology = analyzed.primaryTechnology;
+    current.primaryTechnology = analyzed.requiredSkills[0] || 'Not specified';
     current.requiredSkills = analyzed.requiredSkills;
+    current.softSkills = analyzed.softSkills;
     current.preferredSkills = analyzed.preferredSkills;
     current.companyFounded = analyzed.companyFounded;
     current.approximateEmployeeCount = analyzed.approximateEmployeeCount;

@@ -18,7 +18,7 @@ A focused job-application tracker with three pieces:
 
 1. Install Node 24, MongoDB, and [Ollama](https://ollama.com).
 2. Pull a model, for example `ollama pull qwen2.5:3b`.
-3. Copy `server/.env.example` to `server/.env` if needed. Default is `OLLAMA_URL=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen2.5:3b`, and `OLLAMA_NUM_CTX=2048`. Leave `OLLAMA_NUM_GPU` unset so Ollama uses the GPU. Forcing `OLLAMA_NUM_GPU=0` loads the whole model in RAM and can fail with `CPU_REPACK` on this machine.
+3. Copy `server/.env.example` to `server/.env` if needed. Default is `OLLAMA_URL=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen2.5:3b`, and `OLLAMA_NUM_CTX=1024`. Leave `OLLAMA_NUM_GPU` unset so Ollama uses the GPU. Forcing `OLLAMA_NUM_GPU=0` loads the whole model in RAM and can fail with `CPU_REPACK` on this machine.
 4. From the repo root run `npm run install:all`.
 5. Run `npm run dev`.
 6. Open `http://127.0.0.1:5173` for the dashboard (use this address in ixBrowser; `localhost` is proxied and will fail).
