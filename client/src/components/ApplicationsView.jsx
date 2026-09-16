@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { STATUSES, formatAppliedDate, hostname, isSummaryReady, renderSummaryText, toDateInput } from '../format.js';
+import { ANALYSIS_FILTERS, STATUSES, formatAppliedDate, hostname, isSummaryReady, renderSummaryText, toDateInput } from '../format.js';
 import { Icon } from './Icon.jsx';
 import { Modal } from './Modal.jsx';
 import { StatCard } from './StatCard.jsx';
 import { AnalysisBadge, StatusBadge } from './StatusBadge.jsx';
 
-export function ApplicationsView({ rows, analytics, analysis, query, status, onQuery, onStatus, onChanged }) {
+export function ApplicationsView({
+  rows, analytics, analysis, query, status, analysisFilter, platform, platforms = [],
+  company, companies = [], from, to,
+  onQuery, onStatus, onAnalysis, onPlatform, onCompany, onFrom, onTo, onClearFilters, onChanged
+}) {
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -102,12 +106,53 @@ export function ApplicationsView({ rows, analytics, analysis, query, status, onQ
             placeholder="Search job title, company, description or technology..."
           />
         </div>
-        <select value={status} onChange={(e) => onStatus(e.target.value)}>
-          <option value="">All statuses</option>
-          {STATUSES.map((item) => (
-            <option key={item.value} value={item.value}>{item.label}</option>
-          ))}
-        </select>
+        <div className="filterRow">
+          <label className="dateField">
+            <span>Status</span>
+            <select value={status} onChange={(e) => onStatus(e.target.value)}>
+              <option value="">All statuses</option>
+              {STATUSES.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="dateField">
+            <span>Analysis</span>
+            <select value={analysisFilter} onChange={(e) => onAnalysis(e.target.value)}>
+              <option value="">All analysis</option>
+              {ANALYSIS_FILTERS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="dateField">
+            <span>Platform</span>
+            <select value={platform} onChange={(e) => onPlatform(e.target.value)}>
+              <option value="">All platforms</option>
+              {platforms.map((item) => (
+                <option key={item.domain} value={item.domain}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="dateField">
+            <span>Company</span>
+            <select value={company} onChange={(e) => onCompany(e.target.value)}>
+              <option value="">All companies</option>
+              {companies.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label className="dateField">
+            <span>From</span>
+            <input type="date" value={from} onChange={(e) => onFrom(e.target.value)} />
+          </label>
+          <label className="dateField">
+            <span>To</span>
+            <input type="date" value={to} onChange={(e) => onTo(e.target.value)} />
+          </label>
+          <button className="ghost filterClear" type="button" onClick={onClearFilters}>Clear</button>
+        </div>
       </section>
 
       <section className="panel tableWrap">

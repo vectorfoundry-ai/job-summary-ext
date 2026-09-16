@@ -12,6 +12,13 @@ export function App() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [status, setStatus] = useState('');
+  const [analysisFilter, setAnalysisFilter] = useState('');
+  const [platform, setPlatform] = useState('');
+  const [company, setCompany] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [platforms, setPlatforms] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [range, setRange] = useState('30d');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -27,16 +34,19 @@ export function App() {
     try {
       setError('');
       setRefreshing(true);
-      const [apps, stats, lifetime, overview] = await Promise.all([
-        api.applications(debouncedQuery, status),
+      const [apps, stats, lifetime, overview, options] = await Promise.all([
+        api.applications(debouncedQuery, status, { analysis: analysisFilter, platform, company, from, to }),
         api.analytics(range),
         api.analytics('all'),
-        api.analysisOverview()
+        api.analysisOverview(),
+        api.filterOptions()
       ]);
       setRows(apps);
       setAnalytics(stats);
       setLifetime(lifetime);
       setAnalysis(overview);
+      setPlatforms(options.platforms || []);
+      setCompanies(options.companies || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -45,14 +55,14 @@ export function App() {
     }
   }
 
-  useEffect(() => { refresh(); }, [debouncedQuery, status, range]);
+  useEffect(() => { refresh(); }, [debouncedQuery, status, analysisFilter, platform, company, from, to, range]);
 
   const analysisBusy = (analysis?.queued ?? 0) + (analysis?.running ?? 0) > 0;
   useEffect(() => {
     if (!analysisBusy) return undefined;
     const timer = setInterval(() => { refresh(); }, 4000);
     return () => clearInterval(timer);
-  }, [analysisBusy, debouncedQuery, status, range]);
+  }, [analysisBusy, debouncedQuery, status, analysisFilter, platform, company, from, to, range]);
 
   return (
     <main>
@@ -86,8 +96,29 @@ export function App() {
           analysis={analysis}
           query={query}
           status={status}
+          analysisFilter={analysisFilter}
+          platform={platform}
+          platforms={platforms}
+          company={company}
+          companies={companies}
+          from={from}
+          to={to}
           onQuery={setQuery}
           onStatus={setStatus}
+          onAnalysis={setAnalysisFilter}
+          onPlatform={setPlatform}
+          onCompany={setCompany}
+          onFrom={setFrom}
+          onTo={setTo}
+          onClearFilters={() => {
+            setQuery('');
+            setStatus('');
+            setAnalysisFilter('');
+            setPlatform('');
+            setCompany('');
+            setFrom('');
+            setTo('');
+          }}
           onChanged={refresh}
         />
       ) : (

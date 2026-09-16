@@ -9,16 +9,16 @@ export function statusLabel(value) {
   return STATUSES.find((s) => s.value === value)?.label || value;
 }
 
-export const ANALYSIS_STATUSES = {
-  queued: 'Queued',
-  running: 'Analyzing',
-  ready: 'Ready',
-  error: 'Failed',
-  stopped: 'Stopped'
-};
+export const ANALYSIS_FILTERS = [
+  { value: 'queued', label: 'Queued' },
+  { value: 'running', label: 'Analyzing' },
+  { value: 'ready', label: 'Ready' },
+  { value: 'error', label: 'Failed' },
+  { value: 'stopped', label: 'Stopped' }
+];
 
 export function analysisLabel(value) {
-  return ANALYSIS_STATUSES[value] || 'Ready';
+  return ANALYSIS_FILTERS.find((item) => item.value === value)?.label || 'Ready';
 }
 
 export function isSummaryReady(row) {

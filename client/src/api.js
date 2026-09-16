@@ -11,8 +11,16 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  applications: (q = '', status = '') =>
-    request(`/applications?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`),
+  applications: (q = '', status = '', extra = {}) => {
+    const params = new URLSearchParams({ q, status });
+    if (extra.analysis) params.set('analysis', extra.analysis);
+    if (extra.platform) params.set('platform', extra.platform);
+    if (extra.company) params.set('company', extra.company);
+    if (extra.from) params.set('from', extra.from);
+    if (extra.to) params.set('to', extra.to);
+    return request(`/applications?${params}`);
+  },
+  filterOptions: () => request('/applications/filter-options'),
   analysisOverview: () => request('/applications/analysis-overview'),
   analytics: (range = '30d') => request(`/analytics/overview?range=${encodeURIComponent(range)}`),
   get: (id) => request(`/applications/${id}`),

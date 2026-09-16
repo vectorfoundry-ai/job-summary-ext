@@ -3,30 +3,82 @@ import { Application } from '../models/Application.js';
 import { cancelAnalysis, queueApplication } from '../services/analysis.queue.js';
 import { renameSummaryFile } from '../services/file.service.js';
 import { buildSummaryFilename } from '../utils/sanitizeFilename.js';
+import { jobPlatformFromUrl } from '../utils/jobPlatform.js';
 
 const allowedStatuses = new Set(['applied', 'intro', 'tech', 'offer']);
+const allowedAnalysis = new Set(['queued', 'running', 'ready', 'error', 'stopped']);
+
+function parseDayStart(value) {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseDayEnd(value) {
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 export async function listApplications(req, res, next) {
   try {
-    const { q = '', status = '' } = req.query;
-    const filter = {};
-    if (status && allowedStatuses.has(status)) filter.status = status;
+    const { q = '', status = '', analysis = '', platform = '', company = '', from = '', to = '' } = req.query;
+    const and = [];
+    if (status && allowedStatuses.has(status)) and.push({ status });
+    if (String(company).trim()) and.push({ company: String(company).trim() });
+    if (analysis === 'ready') {
+      and.push({ $or: [{ analysisStatus: 'ready' }, { analysisStatus: { $exists: false } }, { analysisStatus: null }] });
+    } else if (analysis && allowedAnalysis.has(analysis)) {
+      and.push({ analysisStatus: analysis });
+    }
+    if (from) {
+      const start = parseDayStart(from);
+      if (start) and.push({ appliedDate: { $gte: start } });
+    }
+    if (to) {
+      const end = parseDayEnd(to);
+      if (end) and.push({ appliedDate: { $lte: end } });
+    }
     if (q.trim()) {
       const escaped = q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const rx = { $regex: escaped, $options: 'i' };
-      filter.$or = [
-        { jobTitle: rx },
-        { company: rx },
-        { primaryTechnology: rx },
-        { primaryLanguage: rx },
-        { location: rx },
-        { jobUrl: rx },
-        { fileName: rx },
-        { companySummary: rx }
-      ];
+      and.push({
+        $or: [
+          { jobTitle: rx },
+          { company: rx },
+          { primaryTechnology: rx },
+          { primaryLanguage: rx },
+          { location: rx },
+          { jobUrl: rx },
+          { fileName: rx },
+          { companySummary: rx }
+        ]
+      });
     }
-    const rows = await Application.find(filter).sort({ appliedDate: -1, createdAt: -1 });
+
+    const filter = and.length === 1 ? and[0] : and.length ? { $and: and } : {};
+    let rows = await Application.find(filter).sort({ appliedDate: -1, createdAt: -1 });
+    const platformKey = String(platform).trim();
+    if (platformKey) {
+      rows = rows.filter((row) => jobPlatformFromUrl(row.jobUrl).domain === platformKey);
+    }
     res.json(rows);
+  } catch (error) { next(error); }
+}
+
+export async function filterOptions(_req, res, next) {
+  try {
+    const [rows, companies] = await Promise.all([
+      Application.find().select('jobUrl').lean(),
+      Application.distinct('company')
+    ]);
+    const platforms = new Map();
+    for (const row of rows) {
+      const info = jobPlatformFromUrl(row.jobUrl);
+      if (!platforms.has(info.domain)) platforms.set(info.domain, info);
+    }
+    res.json({
+      platforms: [...platforms.values()].sort((a, b) => a.name.localeCompare(b.name) || a.domain.localeCompare(b.domain)),
+      companies: companies.filter(Boolean).sort((a, b) => a.localeCompare(b))
+    });
   } catch (error) { next(error); }
 }
 

@@ -54,7 +54,7 @@ Pipeline status values are `applied`, `intro`, `tech`, and `offer`. Analysis sta
 
 ## Dashboard
 
-- **Applications**: search, filter by status, analysis badge (Queued / Analyzing / Ready / Failed), retry failed jobs, view/download the summary, edit title/company/status/date, delete.
+- **Applications**: search; filter by pipeline status, analysis status, platform, company, and applied date range; analysis badge (Queued / Analyzing / Ready / Failed); retry failed jobs; view/download the summary; edit title/company/status/date; delete.
 - **Analytics**: date ranges, bids-per-day stacked chart, reply rate, job platforms (Indeed, Dice, and other link domains), company breakdown.
 
 Profiles, resumes, and cover letters are not part of this project.
@@ -62,7 +62,8 @@ Profiles, resumes, and cover letters are not part of this project.
 ## API
 
 - `POST /api/summaries`
-- `GET /api/applications`
+- `GET /api/applications` (`q`, `status`, `analysis`, `platform`, `company`, `from`, `to`)
+- `GET /api/applications/filter-options`
 - `GET /api/applications/analysis-overview`
 - `GET /api/applications/:id`
 - `POST /api/applications/:id/retry`
