@@ -4,8 +4,9 @@ import { cancelAnalysis, queueApplication } from '../services/analysis.queue.js'
 import { renameSummaryFile } from '../services/file.service.js';
 import { buildSummaryFilename } from '../utils/sanitizeFilename.js';
 import { jobPlatformFromUrl } from '../utils/jobPlatform.js';
+import { seedStatusHistory } from '../utils/funnel.js';
 
-const allowedStatuses = new Set(['applied', 'intro', 'tech', 'offer']);
+const allowedStatuses = new Set(['applied', 'intro', 'tech', 'offer', 'started']);
 const allowedAnalysis = new Set(['queued', 'running', 'ready', 'error', 'stopped']);
 
 function parseDayStart(value) {
@@ -49,7 +50,8 @@ export async function listApplications(req, res, next) {
           { location: rx },
           { jobUrl: rx },
           { fileName: rx },
-          { companySummary: rx }
+          { companySummary: rx },
+          { notes: rx }
         ]
       });
     }
@@ -95,10 +97,12 @@ export async function updateApplication(req, res, next) {
     const row = await Application.findById(req.params.id);
     if (!row) return res.status(404).json({ error: 'Application not found' });
 
+    const previousStatus = row.status;
     const changes = {};
-    for (const key of ['jobTitle', 'company', 'status', 'appliedDate']) {
+    for (const key of ['jobTitle', 'company', 'status', 'appliedDate', 'notes']) {
       if (req.body?.[key] !== undefined) changes[key] = req.body[key];
     }
+    if (changes.notes !== undefined) changes.notes = String(changes.notes).slice(0, 4000);
     if (changes.status && !allowedStatuses.has(changes.status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
@@ -106,6 +110,18 @@ export async function updateApplication(req, res, next) {
       const parsed = new Date(changes.appliedDate);
       if (Number.isNaN(parsed.getTime())) return res.status(400).json({ error: 'Invalid applied date' });
       changes.appliedDate = parsed;
+    }
+
+    if (changes.status && changes.status !== previousStatus) {
+      if (!row.statusHistory?.length) {
+        row.statusHistory = seedStatusHistory({
+          appliedDate: row.appliedDate,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          status: previousStatus
+        });
+      }
+      row.statusHistory.push({ from: previousStatus, to: changes.status, at: new Date() });
     }
 
     Object.assign(row, changes);

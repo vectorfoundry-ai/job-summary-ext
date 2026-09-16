@@ -33,7 +33,8 @@ export function ApplicationsView({
         jobTitle: editing.jobTitle,
         company: editing.company,
         status: editing.status,
-        appliedDate: editing.appliedDate
+        appliedDate: editing.appliedDate,
+        notes: editing.notes || ''
       });
       setEditing(null);
       await onChanged();
@@ -104,6 +105,7 @@ export function ApplicationsView({
         <StatCard label="Intro" value={counts.intro ?? 0} />
         <StatCard label="Tech" value={counts.tech ?? 0} />
         <StatCard label="Offer" value={counts.offer ?? 0} />
+        <StatCard label="Started" value={counts.started ?? 0} />
       </div>
 
       <section className="panel filters">
@@ -174,6 +176,7 @@ export function ApplicationsView({
               <th>Summary</th>
               <th>Analysis</th>
               <th>Status</th>
+              <th>Notes</th>
               <th>Applied</th>
               <th></th>
             </tr>
@@ -181,7 +184,7 @@ export function ApplicationsView({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="8" className="empty">
+                <td colSpan="9" className="empty">
                   No applications yet. Open a job posting and click <b>Generate Summary</b> in the Chrome extension.
                 </td>
               </tr>
@@ -216,6 +219,7 @@ export function ApplicationsView({
                     <AnalysisBadge status={row.analysisStatus} error={row.analysisError} />
                   </td>
                   <td><StatusBadge status={row.status} /></td>
+                  <td className="noteCell" title={row.notes || undefined}>{row.notes || '—'}</td>
                   <td className="nowrap">{formatAppliedDate(row.appliedDate)}</td>
                   <td className="actions">
                     {canRetry ? (
@@ -228,7 +232,7 @@ export function ApplicationsView({
                         <Icon name="x" size={15} />
                       </button>
                     ) : null}
-                    <button className="link iconOnly" type="button" onClick={() => setEditing({ ...row, appliedDate: toDateInput(row.appliedDate) })} aria-label="Edit application" title="Edit">
+                    <button className="link iconOnly" type="button" onClick={() => setEditing({ ...row, appliedDate: toDateInput(row.appliedDate), notes: row.notes || '' })} aria-label="Edit application" title="Edit">
                       <Icon name="edit" size={15} />
                     </button>
                     <button className="danger iconOnly" type="button" onClick={() => setDeleting(row)} aria-label="Delete application" title="Delete">
@@ -245,6 +249,12 @@ export function ApplicationsView({
       {viewing && (
         <Modal title={`${viewing.company} — ${viewing.jobTitle}`} onClose={() => setViewing(null)} wide>
           <pre className="summary">{viewText}</pre>
+          {viewing.notes ? (
+            <div className="jobNotes">
+              <h3>Notes</h3>
+              <p>{viewing.notes}</p>
+            </div>
+          ) : null}
           <div className="modalActions">
             <a className="button iconBtn" href={api.downloadUrl(viewing._id)}>
               <Icon name="download" /> Download {viewing.fileName}
@@ -294,6 +304,15 @@ export function ApplicationsView({
             <label>
               Applied date
               <input type="date" value={editing.appliedDate} onChange={(e) => setEditing({ ...editing, appliedDate: e.target.value })} required />
+            </label>
+            <label>
+              Notes
+              <textarea
+                rows="4"
+                value={editing.notes || ''}
+                onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
+                placeholder="Interview feedback, start date, recruiter name…"
+              />
             </label>
             <div className="modalActions">
               <button className="button iconBtn" type="submit" disabled={saving}>

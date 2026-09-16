@@ -8,8 +8,17 @@ const applicationSchema = new mongoose.Schema({
   filePath: { type: String, default: '' },
   status: {
     type: String,
-    enum: ['applied', 'intro', 'tech', 'offer'],
+    enum: ['applied', 'intro', 'tech', 'offer', 'started'],
     default: 'applied'
+  },
+  notes: { type: String, default: '', trim: true },
+  statusHistory: {
+    type: [{
+      from: { type: String, default: '' },
+      to: { type: String, required: true },
+      at: { type: Date, default: Date.now }
+    }],
+    default: []
   },
   appliedDate: { type: Date, default: Date.now },
   compensation: { type: String, default: 'Not specified' },

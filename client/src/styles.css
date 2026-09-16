@@ -41,25 +41,29 @@ h3 { font-size: 16px; font-weight: 650; margin-bottom: 4px; }
 
 nav {
   display: flex;
+  flex-wrap: wrap;
   border: 1px solid #2a303b;
   background: #151922;
   border-radius: 12px;
   padding: 4px;
 }
 
-nav button {
+nav a {
   border: 0;
   background: transparent;
   color: #aab4c6;
-  padding: 8px 16px;
+  padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  text-decoration: none;
+  font: inherit;
+  white-space: nowrap;
 }
 
-nav button.active {
+nav a.active {
   background: #202634;
   color: #fff;
 }
@@ -89,6 +93,10 @@ nav button.active {
   gap: 12px;
   margin-bottom: 18px;
 }
+
+.statGrid.compact { grid-template-columns: repeat(6, 1fr); }
+.statGrid.four { grid-template-columns: repeat(4, 1fr); }
+.panel .statGrid { margin-bottom: 0; margin-top: 12px; }
 
 .statGrid.compact .statValue { font-size: 28px; }
 
@@ -162,7 +170,8 @@ nav button.active {
 .filters select,
 .filters input[type="date"],
 .form input,
-.form select {
+.form select,
+.form textarea {
   background: #11151c;
   border: 1px solid #303745;
   color: #f7f8fb;
@@ -208,7 +217,7 @@ nav button.active {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 920px;
+  min-width: 1080px;
 }
 
 th, td {
@@ -260,6 +269,13 @@ th {
 }
 
 .titleCell { font-weight: 600; color: #fff; max-width: 340px; }
+.noteCell {
+  max-width: 220px;
+  color: #c5cedd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .empty { color: #8b97ab; text-align: center; padding: 36px 16px; }
 .emptyInline { color: #8b97ab; margin: 14px 0 8px; }
 
@@ -316,6 +332,7 @@ a, .link {
 .badge-intro { background: #4a3410; color: #fbbf24; }
 .badge-tech { background: #3b2a63; color: #c4b5fd; }
 .badge-offer { background: #163c2b; color: #4ade80; }
+.badge-started { background: #0e3d45; color: #67e8f9; }
 .badge-analysis-queued { background: #2a303b; color: #cdd5e3; }
 .badge-analysis-running { background: #1d3a73; color: #9ec0ff; }
 .badge-analysis-ready { background: #163c2b; color: #4ade80; }
@@ -472,6 +489,10 @@ a, .link {
 .innerTable th,
 .innerTable td { padding: 8px 12px; }
 .innerTable th { font-size: 10px; }
+.rateCell small { display: block; font-size: 10px; margin-top: 2px; }
+.delta.up { color: #4ade80; }
+.delta.down { color: #ff8b8b; }
+.delta.flat { color: #8b97ab; }
 
 .footnote {
   color: #7d8aa0;
@@ -571,6 +592,18 @@ a, .link {
 
 .form { display: grid; gap: 12px; }
 .form label { display: grid; gap: 6px; color: #9eabc0; font-size: 13px; }
+.form textarea { resize: vertical; min-height: 88px; font: inherit; }
+
+.jobNotes {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  background: #0f131a;
+  border: 1px solid #2b323f;
+  border-radius: 10px;
+}
+
+.jobNotes h3 { margin-bottom: 6px; font-size: 13px; }
+.jobNotes p { white-space: pre-wrap; font-size: 13px; line-height: 1.5; color: #e8edf6; }
 .modalActions { display: flex; gap: 10px; margin-top: 8px; align-items: center; }
 
 .summary {

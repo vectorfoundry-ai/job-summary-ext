@@ -39,6 +39,7 @@ export async function createSummary(req, res, next) {
       filePath: '',
       status: 'applied',
       appliedDate: new Date(),
+      statusHistory: [{ from: '', to: 'applied', at: new Date() }],
       sourceText: pageText,
       analysisStatus: 'queued',
       analysisError: ''

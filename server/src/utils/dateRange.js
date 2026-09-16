@@ -8,6 +8,27 @@ export function toLocalYmd(value) {
   return `${y}-${m}-${d}`;
 }
 
+export function toLocalYm(value) {
+  return toLocalYmd(value).slice(0, 7);
+}
+
+export function eachLocalMonth(start, end) {
+  const months = [];
+  if (!start || !end) return months;
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cursor <= last) {
+    months.push(toLocalYm(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months;
+}
+
+export function formatMonthLabel(ym) {
+  const [year, month] = String(ym).split('-').map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
 export function parseRange(range = '30d') {
   const key = RANGES.has(range) ? range : '30d';
   const end = new Date();

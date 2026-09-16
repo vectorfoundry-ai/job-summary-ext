@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { api } from './api.js';
 import { Icon } from './components/Icon.jsx';
-import { AnalyticsView } from './components/AnalyticsView.jsx';
+import { ApplicationAnalyticsView } from './components/ApplicationAnalyticsView.jsx';
 import { ApplicationsView } from './components/ApplicationsView.jsx';
+import { InterviewAnalyticsView } from './components/InterviewAnalyticsView.jsx';
 
 export function App() {
-  const [tab, setTab] = useState('applications');
   const [rows, setRows] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [lifetime, setLifetime] = useState(null);
@@ -74,14 +75,18 @@ export function App() {
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
           <nav>
-            <button type="button" className={tab === 'applications' ? 'active' : ''} onClick={() => setTab('applications')}>
+            <NavLink to="/" end>
               <Icon name="list" />
               Applications
-            </button>
-            <button type="button" className={tab === 'analytics' ? 'active' : ''} onClick={() => setTab('analytics')}>
+            </NavLink>
+            <NavLink to="/analytics/applications">
               <Icon name="chart" />
-              Analytics
-            </button>
+              Application analytics
+            </NavLink>
+            <NavLink to="/analytics/interviews">
+              <Icon name="spark" />
+              Interview analytics
+            </NavLink>
           </nav>
         </div>
       </header>
@@ -96,41 +101,54 @@ export function App() {
       ) : null}
       {loading && !analytics ? <div className="muted">Loading…</div> : null}
 
-      {tab === 'applications' ? (
-        <ApplicationsView
-          rows={rows}
-          analytics={lifetime}
-          analysis={analysis}
-          query={query}
-          status={status}
-          analysisFilter={analysisFilter}
-          platform={platform}
-          platforms={platforms}
-          company={company}
-          companies={companies}
-          from={from}
-          to={to}
-          onQuery={setQuery}
-          onStatus={setStatus}
-          onAnalysis={setAnalysisFilter}
-          onPlatform={setPlatform}
-          onCompany={setCompany}
-          onFrom={setFrom}
-          onTo={setTo}
-          onClearFilters={() => {
-            setQuery('');
-            setStatus('');
-            setAnalysisFilter('');
-            setPlatform('');
-            setCompany('');
-            setFrom('');
-            setTo('');
-          }}
-          onChanged={refresh}
+      <Routes>
+        <Route
+          path="/"
+          element={(
+            <ApplicationsView
+              rows={rows}
+              analytics={lifetime}
+              analysis={analysis}
+              query={query}
+              status={status}
+              analysisFilter={analysisFilter}
+              platform={platform}
+              platforms={platforms}
+              company={company}
+              companies={companies}
+              from={from}
+              to={to}
+              onQuery={setQuery}
+              onStatus={setStatus}
+              onAnalysis={setAnalysisFilter}
+              onPlatform={setPlatform}
+              onCompany={setCompany}
+              onFrom={setFrom}
+              onTo={setTo}
+              onClearFilters={() => {
+                setQuery('');
+                setStatus('');
+                setAnalysisFilter('');
+                setPlatform('');
+                setCompany('');
+                setFrom('');
+                setTo('');
+              }}
+              onChanged={refresh}
+            />
+          )}
         />
-      ) : (
-        <AnalyticsView analytics={analytics} range={range} onRange={setRange} />
-      )}
+        <Route
+          path="/analytics/applications"
+          element={<ApplicationAnalyticsView analytics={analytics} range={range} onRange={setRange} />}
+        />
+        <Route
+          path="/analytics/interviews"
+          element={<InterviewAnalyticsView analytics={analytics} range={range} onRange={setRange} />}
+        />
+        <Route path="/analytics" element={<Navigate to="/analytics/applications" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </main>
   );
 }

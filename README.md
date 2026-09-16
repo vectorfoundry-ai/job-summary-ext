@@ -4,7 +4,7 @@ A focused job-application tracker with three pieces:
 
 - Chrome extension: a side panel that captures the job page and queues analysis on the server. Each tab has its own session.
 - Express API: saves the page text immediately, then analyzes with local Ollama in the background, writes the `.txt` summary, and stores metadata in MongoDB.
-- React dashboard: applications table plus analytics.
+- React dashboard: applications table, application analytics, and interview analytics.
 
 ## Stack
 
@@ -50,12 +50,13 @@ If Ollama fails, the row stays on the dashboard as **Failed** with the error tex
 
 The job URL is unique (tracking parameters stripped) to prevent accidental duplicate saves from repeated clicks.
 
-Pipeline status values are `applied`, `intro`, `tech`, and `offer`. Analysis status values are `queued`, `running`, `ready`, `error`, and `stopped`.
+Pipeline status values are `applied`, `intro`, `tech`, `offer`, and `started`. Analysis status values are `queued`, `running`, `ready`, `error`, and `stopped`.
 
 ## Dashboard
 
-- **Applications**: search; filter by pipeline status, analysis status, platform, company, and applied date range; analysis badge (Queued / Analyzing / Ready / Failed); retry failed jobs; view/download the summary; edit title/company/status/date; delete.
-- **Analytics**: date ranges, bids-per-day stacked chart, reply rate, job platforms (Indeed, Dice, and other link domains), company breakdown.
+- **Applications** (`/`): search; filter by pipeline status, analysis status, platform, company, and applied date range; analysis badge (Queued / Analyzing / Ready / Failed); retry failed jobs; view/download the summary; edit title/company/status/notes/date; delete.
+- **Application analytics** (`/analytics/applications`): date ranges, bids-per-day stacked chart, job platforms, company volume.
+- **Interview analytics** (`/analytics/interviews`): interview pass rates, monthly pass-rate trend and month-over-month change, replies by company and platform.
 
 Profiles, resumes, and cover letters are not part of this project.
 

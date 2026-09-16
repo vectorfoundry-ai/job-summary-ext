@@ -1,11 +1,15 @@
 import { Application } from '../models/Application.js';
-import { eachLocalDay, formatLongDate, parseRange, rangeCaption, toLocalYmd } from '../utils/dateRange.js';
+import { eachLocalDay, eachLocalMonth, formatLongDate, formatMonthLabel, parseRange, rangeCaption, toLocalYm, toLocalYmd } from '../utils/dateRange.js';
+import { emptyCounts, interviewPassRates, monthPassRatesFromHistory, PIPELINE, repliedCount, totalCount, withStepDeltas } from '../utils/funnel.js';
 import { jobPlatformFromUrl } from '../utils/jobPlatform.js';
 
-const STATUSES = ['applied', 'intro', 'tech', 'offer'];
-
-function emptyCounts() {
-  return { applied: 0, intro: 0, tech: 0, offer: 0 };
+function monthBounds(ym, rangeStart, rangeEnd) {
+  const [year, month] = String(ym).split('-').map(Number);
+  let start = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  let end = new Date(year, month, 0, 23, 59, 59, 999);
+  if (rangeStart && start < rangeStart) start = new Date(rangeStart);
+  if (rangeEnd && end > rangeEnd) end = new Date(rangeEnd);
+  return { start, end };
 }
 
 export async function overview(req, res, next) {
@@ -39,10 +43,13 @@ export async function overview(req, res, next) {
     const companies = new Map();
     const platforms = new Map();
     const technologies = new Map();
+    const monthEnd = end || new Date();
+    const monthKeys = eachLocalMonth(timelineStart, monthEnd);
+    const monthMap = new Map(monthKeys.map((month) => [month, { month, ...emptyCounts(), bids: 0 }]));
 
     for (const row of rows) {
       if (row.analysisStatus && row.analysisStatus !== 'ready') continue;
-      const st = STATUSES.includes(row.status) ? row.status : 'applied';
+      const st = PIPELINE.includes(row.status) ? row.status : 'applied';
       status[st] += 1;
       const day = toLocalYmd(row.appliedDate);
       if (timelineMap.has(day)) {
@@ -64,13 +71,36 @@ export async function overview(req, res, next) {
       platform[st] += 1;
       platform.bids += 1;
 
+      const ym = toLocalYm(row.appliedDate);
+      if (monthMap.has(ym)) {
+        monthMap.get(ym)[st] += 1;
+        monthMap.get(ym).bids += 1;
+      }
+
       const techName = row.primaryTechnology || 'Not specified';
       technologies.set(techName, (technologies.get(techName) || 0) + 1);
     }
 
-    const total = status.applied + status.intro + status.tech + status.offer;
-    const replied = status.intro + status.tech + status.offer;
+    const total = totalCount(status);
+    const replied = repliedCount(status);
     const replyRate = total ? Number(((replied / total) * 100).toFixed(1)) : 0;
+    const passRates = interviewPassRates(status);
+    const historyJobs = await Application.find()
+      .select('status appliedDate statusHistory updatedAt createdAt')
+      .lean();
+
+    const monthlyPassRates = withStepDeltas(
+      monthKeys.map((month) => {
+        const bounds = monthBounds(month, timelineStart, monthEnd);
+        const computed = monthPassRatesFromHistory(historyJobs, bounds.start, bounds.end);
+        return {
+          month,
+          label: formatMonthLabel(month),
+          bids: computed.bids,
+          steps: computed.steps
+        };
+      })
+    );
     const timeline = [...timelineMap.values()];
     const activeDays = timeline.filter((d) => d.total > 0).length;
     const perActiveDay = activeDays ? Number((total / activeDays).toFixed(1)) : 0;
@@ -79,20 +109,20 @@ export async function overview(req, res, next) {
     const companyRows = [...companies.values()]
       .map((c) => ({
         ...c,
-        replyRate: c.bids ? Number((((c.intro + c.tech + c.offer) / c.bids) * 100).toFixed(1)) : 0
+        replyRate: c.bids ? Number(((repliedCount(c) / c.bids) * 100).toFixed(1)) : 0
       }))
       .sort((a, b) => b.bids - a.bids)
       .slice(0, 12);
 
     const repliesByCompany = companyRows
-      .map((c) => ({ name: c.name, replies: c.intro + c.tech + c.offer }))
+      .map((c) => ({ name: c.name, replies: repliedCount(c) }))
       .sort((a, b) => b.replies - a.replies);
 
     const platformRows = [...platforms.values()]
       .map((p) => ({
         ...p,
         share: total ? Number(((p.bids / total) * 100).toFixed(1)) : 0,
-        replyRate: p.bids ? Number((((p.intro + p.tech + p.offer) / p.bids) * 100).toFixed(1)) : 0
+        replyRate: p.bids ? Number(((repliedCount(p) / p.bids) * 100).toFixed(1)) : 0
       }))
       .sort((a, b) => b.bids - a.bids || a.name.localeCompare(b.name));
 
@@ -103,6 +133,8 @@ export async function overview(req, res, next) {
       status,
       replied,
       replyRate,
+      passRates,
+      monthlyPassRates,
       awaitingReply: status.applied,
       activeDays,
       perActiveDay,

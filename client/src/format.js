@@ -2,7 +2,8 @@ export const STATUSES = [
   { value: 'applied', label: 'Applied' },
   { value: 'intro', label: 'Intro' },
   { value: 'tech', label: 'Tech' },
-  { value: 'offer', label: 'Offer' }
+  { value: 'offer', label: 'Offer' },
+  { value: 'started', label: 'Started' }
 ];
 
 export function statusLabel(value) {
@@ -90,4 +91,15 @@ export function renderSummaryText(row) {
 export function chartTick(ymd) {
   const date = new Date(`${ymd}T12:00:00`);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+export function formatDateTime(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
 }

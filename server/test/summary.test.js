@@ -6,6 +6,7 @@ import { eachLocalDay, parseRange, toLocalYmd } from '../src/utils/dateRange.js'
 import { normalizeJobUrl } from '../src/utils/normalizeUrl.js';
 import { jobPlatformFromUrl } from '../src/utils/jobPlatform.js';
 import { placeholderCompany, placeholderTitle } from '../src/utils/placeholders.js';
+import { expandSteps, interviewPassRates, monthPassRatesFromHistory } from '../src/utils/funnel.js';
 
 test('builds Windows-safe required filename', () => {
   assert.equal(
@@ -60,4 +61,43 @@ test('keeps unknown job hosts as their domain', () => {
 test('builds placeholders from page title and job URL', () => {
   assert.equal(placeholderTitle('Senior Python Engineer | Acme', 'https://www.indeed.com/viewjob?jk=1'), 'Senior Python Engineer | Acme');
   assert.equal(placeholderCompany('https://www.indeed.com/viewjob?jk=1'), 'indeed.com');
+});
+
+test('computes interview pass rates from current pipeline status', () => {
+  const steps = interviewPassRates({ applied: 7, intro: 2, tech: 1, offer: 1, started: 1 });
+  assert.deepEqual(steps.map((s) => [s.from, s.to, s.passed, s.pool, s.rate]), [
+    ['applied', 'intro', 5, 12, 41.7],
+    ['intro', 'tech', 3, 5, 60],
+    ['tech', 'offer', 2, 3, 66.7],
+    ['offer', 'started', 1, 2, 50]
+  ]);
+});
+
+test('expands skipped status changes into interview steps', () => {
+  assert.deepEqual(expandSteps('applied', 'offer'), [
+    { from: 'applied', to: 'intro' },
+    { from: 'intro', to: 'tech' },
+    { from: 'tech', to: 'offer' }
+  ]);
+});
+
+test('counts monthly pass rates from the status-change log', () => {
+  const start = new Date(2026, 8, 1);
+  const end = new Date(2026, 8, 30, 23, 59, 59, 999);
+  const { steps } = monthPassRatesFromHistory([
+    {
+      appliedDate: new Date(2026, 8, 2),
+      statusHistory: [
+        { from: '', to: 'applied', at: new Date(2026, 8, 2) },
+        { from: 'applied', to: 'intro', at: new Date(2026, 8, 10) }
+      ]
+    },
+    {
+      appliedDate: new Date(2026, 8, 3),
+      statusHistory: [{ from: '', to: 'applied', at: new Date(2026, 8, 3) }]
+    }
+  ], start, end);
+  assert.equal(steps[0].passed, 1);
+  assert.equal(steps[0].pool, 2);
+  assert.equal(steps[0].rate, 50);
 });
