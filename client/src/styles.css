@@ -68,6 +68,11 @@ nav button.active {
 .small { font-size: 13px; line-height: 1.4; }
 .nowrap { white-space: nowrap; }
 
+.inFlightNote {
+  font-size: 12px;
+  margin: 0 0 16px;
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
@@ -76,7 +81,7 @@ nav button.active {
   margin-bottom: 18px;
 }
 
-.hero p { margin-top: 6px; }
+.hero p { margin-top: 6px; font-size: 12px; }
 
 .statGrid {
   display: grid;
@@ -332,6 +337,31 @@ a, .link {
   color: #cbb892;
   white-space: pre-wrap;
 }
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bannerClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.bannerClose:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
 
 .range {
   display: flex;

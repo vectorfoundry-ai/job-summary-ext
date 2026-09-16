@@ -86,7 +86,14 @@ export function App() {
         </div>
       </header>
 
-      {error ? <div className="error">{error}</div> : null}
+      {error ? (
+        <div className="error banner">
+          <span>{error}</span>
+          <button className="bannerClose" type="button" onClick={() => setError('')} aria-label="Dismiss" title="Dismiss">
+            <Icon name="x" />
+          </button>
+        </div>
+      ) : null}
       {loading && !analytics ? <div className="muted">Loading…</div> : null}
 
       {tab === 'applications' ? (

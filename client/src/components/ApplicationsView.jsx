@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { ANALYSIS_FILTERS, STATUSES, formatAppliedDate, hostname, isSummaryReady, renderSummaryText, toDateInput } from '../format.js';
 import { Icon } from './Icon.jsx';
@@ -15,9 +15,13 @@ export function ApplicationsView({
   const [viewing, setViewing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [warnClosed, setWarnClosed] = useState(false);
   const counts = analytics?.status || {};
   const failed = analysis?.error ?? 0;
   const inFlight = (analysis?.queued ?? 0) + (analysis?.running ?? 0);
+  const failStamp = `${analysis?.lastFailedAt || ''}:${analysis?.lastError || ''}`;
+
+  useEffect(() => { setWarnClosed(false); }, [failStamp]);
 
   const viewText = useMemo(() => (viewing ? renderSummaryText(viewing) : ''), [viewing]);
 
@@ -79,14 +83,19 @@ export function ApplicationsView({
         </div>
       </section>
 
-      {failed > 0 ? (
-        <div className="warn">
-          <b>{failed} summar{failed === 1 ? 'y' : 'ies'} failed.</b> Ollama is down or ran out of memory. Fix Ollama, then click Retry.
-          {analysis?.lastError ? <p className="errorDetail">{analysis.lastFailedJob ? `${analysis.lastFailedJob}: ` : ''}{analysis.lastError}</p> : null}
+      {failed > 0 && !warnClosed ? (
+        <div className="warn banner">
+          <div>
+            <b>{failed} summar{failed === 1 ? 'y' : 'ies'} failed.</b> Ollama is down or ran out of memory. Fix Ollama, then click Retry.
+            {analysis?.lastError ? <p className="errorDetail">{analysis.lastFailedJob ? `${analysis.lastFailedJob}: ` : ''}{analysis.lastError}</p> : null}
+          </div>
+          <button className="bannerClose" type="button" onClick={() => setWarnClosed(true)} aria-label="Dismiss" title="Dismiss">
+            <Icon name="x" />
+          </button>
         </div>
       ) : null}
       {inFlight > 0 ? (
-        <p className="muted">{inFlight} summar{inFlight === 1 ? 'y' : 'ies'} still analyzing in the background.</p>
+        <p className="muted inFlightNote">{inFlight} summar{inFlight === 1 ? 'y' : 'ies'} still analyzing in the background.</p>
       ) : null}
 
       <div className="statGrid compact">

@@ -155,7 +155,7 @@ async function unloadLoadedModels(baseUrl) {
 
 export async function analyzeJob({ pageText, jobUrl, signal } = {}) {
   const baseUrl = (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
-  const model = process.env.OLLAMA_MODEL || 'qwen3.5:4b';
+  const model = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
   const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 360000);
   let numCtx = Math.max(1024, Number(process.env.OLLAMA_NUM_CTX || 2048));
   const gpuEnv = process.env.OLLAMA_NUM_GPU;
