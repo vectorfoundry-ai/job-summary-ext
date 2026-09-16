@@ -13,9 +13,12 @@ async function request(path, options = {}) {
 export const api = {
   applications: (q = '', status = '') =>
     request(`/applications?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`),
+  analysisOverview: () => request('/applications/analysis-overview'),
   analytics: (range = '30d') => request(`/analytics/overview?range=${encodeURIComponent(range)}`),
   get: (id) => request(`/applications/${id}`),
   update: (id, data) => request(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  retry: (id) => request(`/applications/${id}/retry`, { method: 'POST' }),
+  cancelAnalysis: (id) => request(`/applications/${id}/cancel`, { method: 'POST' }),
   remove: (id) => request(`/applications/${id}`, { method: 'DELETE' }),
   downloadUrl: (id) => `${BASE}/applications/${id}/download`
 };

@@ -56,3 +56,4 @@ button#summary:disabled { opacity: .65; cursor: wait; }
 .icon { display: block; flex-shrink: 0; }
 .status { font-size: 13px; line-height: 1.45; margin-top: 14px; color: #cdd5e3; white-space: pre-wrap; flex: 1; }
 .dashboard { display: flex; margin-top: 16px; color: #83aaff; text-decoration: none; font-weight: 600; }
+.apiTarget { font-size: 11px; color: #8b97ab; margin: -8px 0 14px; word-break: break-all; }

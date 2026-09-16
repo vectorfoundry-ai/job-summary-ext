@@ -1,22 +1,18 @@
-import { unlink } from 'node:fs/promises';
 import { Application } from '../models/Application.js';
-import { analyzeJob } from '../services/ollama.service.js';
-import { renderSummary } from '../services/summary.service.js';
-import { saveSummaryFile } from '../services/file.service.js';
-import { buildSummaryFilename } from '../utils/sanitizeFilename.js';
+import { enqueueAnalysis } from '../services/analysis.queue.js';
 import { normalizeJobUrl } from '../utils/normalizeUrl.js';
+import { placeholderCompany, placeholderTitle } from '../utils/placeholders.js';
 
 function filePayload(application) {
   return {
     name: application.fileName,
-    downloadUrl: `/api/applications/${application._id}/download`
+    downloadUrl: application._id ? `/api/applications/${application._id}/download` : ''
   };
 }
 
 export async function createSummary(req, res, next) {
-  let writtenPath;
   try {
-    const { url, pageText } = req.body ?? {};
+    const { url, pageText, pageTitle } = req.body ?? {};
     if (!url || !pageText || pageText.trim().length < 100) {
       return res.status(400).json({ error: 'url and a meaningful pageText are required' });
     }
@@ -25,47 +21,38 @@ export async function createSummary(req, res, next) {
     const existing = await Application.findOne({ jobUrl });
     if (existing) {
       return res.status(409).json({
-        error: 'This job URL is already saved',
+        error: existing.analysisStatus === 'error'
+          ? 'This job URL is already saved, but analysis failed. Retry it from the dashboard.'
+          : existing.analysisStatus === 'queued' || existing.analysisStatus === 'running'
+            ? 'This job URL is already queued for analysis'
+            : 'This job URL is already saved',
         application: existing,
         file: filePayload(existing)
       });
     }
 
-    const analyzed = await analyzeJob({ pageText: pageText.slice(0, 12000), jobUrl });
-    const requestedName = buildSummaryFilename(analyzed.company, analyzed.jobTitle);
-    const summary = renderSummary(analyzed);
-    const saved = await saveSummaryFile(requestedName, summary);
-    writtenPath = saved.fullPath;
-
     const application = await Application.create({
-      jobTitle: analyzed.jobTitle,
-      company: analyzed.company,
+      jobTitle: placeholderTitle(pageTitle, jobUrl),
+      company: placeholderCompany(jobUrl),
       jobUrl,
-      fileName: saved.fileName,
-      filePath: saved.fullPath,
+      fileName: '',
+      filePath: '',
       status: 'applied',
       appliedDate: new Date(),
-      compensation: analyzed.compensation,
-      location: analyzed.location,
-      jobType: analyzed.jobType,
-      primaryLanguage: analyzed.primaryLanguage,
-      primaryTechnology: analyzed.primaryTechnology,
-      requiredSkills: analyzed.requiredSkills,
-      preferredSkills: analyzed.preferredSkills,
-      companyFounded: analyzed.companyFounded,
-      approximateEmployeeCount: analyzed.approximateEmployeeCount,
-      companySummary: analyzed.companySummary,
-      sourceText: pageText
+      sourceText: pageText,
+      analysisStatus: 'queued',
+      analysisError: ''
     });
 
-    res.status(201).json({
+    enqueueAnalysis();
+
+    res.status(202).json({
       success: true,
+      queued: true,
       application,
-      file: filePayload(application),
-      summary
+      file: filePayload(application)
     });
   } catch (error) {
-    if (writtenPath) await unlink(writtenPath).catch(() => {});
     if (error?.code === 11000) {
       const duplicate = await Application.findOne({ jobUrl: normalizeJobUrl(req.body?.url) });
       if (duplicate) {

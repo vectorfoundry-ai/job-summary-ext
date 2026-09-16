@@ -6,9 +6,15 @@ const statusEl = document.getElementById('status');
 const urlEl = document.getElementById('url');
 const titleEl = document.getElementById('title');
 const hintEl = document.getElementById('hint');
+const apiTargetEl = document.getElementById('apiTarget');
 const dashboardEl = document.getElementById('dashboard');
 
 if (publicUrl && dashboardEl) dashboardEl.href = publicUrl;
+if (apiTargetEl) {
+  apiTargetEl.textContent = publicUrl
+    ? `API: ${publicUrl}/api`
+    : 'API: 127.0.0.1 (ixBrowser will fail — run npm run tunnel and reload this extension)';
+}
 
 chrome.runtime.connect({ name: 'sidepanel' });
 
@@ -25,7 +31,7 @@ function startGenerate(tabId) {
   stopBtn.disabled = false;
   retryBtn.disabled = true;
   statusEl.textContent = 'Reading job page…';
-  chrome.runtime.sendMessage({ type: 'GENERATE', tabId });
+  chrome.runtime.sendMessage({ type: 'GENERATE', tabId, publicUrl });
 }
 
 function renderPage(tab, state = {}) {

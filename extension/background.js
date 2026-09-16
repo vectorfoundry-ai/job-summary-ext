@@ -50,12 +50,37 @@ function extractJobPage() {
   };
 }
 
-async function apiBase() {
+async function readPublicUrl() {
+  try {
+    const text = await fetch(chrome.runtime.getURL('api-base.js')).then((response) => response.text());
+    const match = text.match(/JOB_TRACKER_PUBLIC_URL\s*=\s*(".*?"|'.*?')/);
+    if (!match) return '';
+    return String(JSON.parse(match[1]) || '').replace(/\/+$/, '');
+  } catch {
+    return String(globalThis.JOB_TRACKER_PUBLIC_URL || '').replace(/\/+$/, '');
+  }
+}
+
+function isLoopbackApi(url) {
+  return /127\.0\.0\.1|localhost|\[::1\]/i.test(String(url || ''));
+}
+
+async function apiBase(preferredPublicUrl) {
+  const fromMessage = String(preferredPublicUrl || '').replace(/\/+$/, '');
+  if (fromMessage) return `${fromMessage}/api`;
+  const fromFile = await readPublicUrl();
+  if (fromFile) return `${fromFile}/api`;
   const stored = await chrome.storage.sync.get(['apiBase']);
-  if (stored.apiBase) return stored.apiBase;
-  const publicUrl = String(globalThis.JOB_TRACKER_PUBLIC_URL || '').replace(/\/+$/, '');
-  if (publicUrl) return `${publicUrl}/api`;
+  if (stored.apiBase && !isLoopbackApi(stored.apiBase)) return stored.apiBase;
   return DEFAULT_API;
+}
+
+function networkHint(base, error) {
+  if (!/Failed to fetch|NetworkError|ERR_CONNECTION|Load failed/i.test(error.message)) return '';
+  if (isLoopbackApi(base)) {
+    return '\n\nixBrowser cannot reach 127.0.0.1 through the proxy. Reload this extension after npm run tunnel prints a trycloudflare URL, or add 127.0.0.1 to this profile’s proxy bypass list and reopen the profile.';
+  }
+  return `\n\nCould not reach ${base}. The Cloudflare tunnel is down or this extension still has an old URL. Restart npm run tunnel, then reload the extension.`;
 }
 
 async function readState(tabId) {
@@ -113,7 +138,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (message?.type === 'GENERATE') {
-    generateForTab(message.tabId);
+    generateForTab(message.tabId, message.publicUrl);
     sendResponse({ ok: true });
   }
   if (message?.type === 'STOP') {
@@ -127,10 +152,13 @@ function stopForTab(tabId) {
   if (!tabId) return;
   const controller = controllers.get(tabId);
   if (controller) controller.abort();
-  else {
-    running.delete(tabId);
+  else running.delete(tabId);
+  readState(tabId).then((state) => {
+    if (state.applicationId) {
+      apiBase().then((base) => fetch(`${base}/applications/${state.applicationId}/cancel`, { method: 'POST' })).catch(() => {});
+    }
     writeState(tabId, { busy: false, phase: 'stopped', message: 'Stopped.' });
-  }
+  });
 }
 
 function throwIfStopped(controller) {
@@ -141,13 +169,14 @@ function throwIfStopped(controller) {
   }
 }
 
-async function generateForTab(tabId) {
+async function generateForTab(tabId, preferredPublicUrl) {
   if (!tabId || running.has(tabId)) return;
   const controller = new AbortController();
   running.add(tabId);
   controllers.set(tabId, controller);
   keepAlive();
 
+  let apiUrl = '';
   try {
     const tab = await chrome.tabs.get(tabId);
     throwIfStopped(controller);
@@ -173,19 +202,19 @@ async function generateForTab(tabId) {
       throw new Error('Could not read enough text from this page.');
     }
 
+    apiUrl = await apiBase(preferredPublicUrl);
     await writeState(tabId, {
       busy: true,
       phase: 'running',
       title: result.title || tab.title || 'Unknown page',
       url: result.url || tab.url || '',
-      message: `Analyzing job and company…\n${result.title || tab.title || ''}`
+      message: `Saving job text…\n${result.title || tab.title || ''}`
     });
 
-    const base = await apiBase();
-    const response = await fetch(`${base}/summaries`, {
+    const response = await fetch(`${apiUrl}/summaries`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: result.url, pageText: result.pageText }),
+      body: JSON.stringify({ url: result.url, pageText: result.pageText, pageTitle: result.title || tab.title }),
       signal: controller.signal
     });
     throwIfStopped(controller);
@@ -195,25 +224,23 @@ async function generateForTab(tabId) {
     }
 
     const application = data.application;
-    if (!application?.company) {
-      throw new Error(data.error || 'The API did not return a saved application. Check that the server and Ollama are running.');
+    if (!application?._id) {
+      throw new Error(data.error || 'The API did not queue the application. Check that the server is running.');
     }
-    const fileName = data.file?.name || application.fileName;
     await writeState(tabId, {
       busy: false,
       phase: 'done',
+      applicationId: application._id,
       message: response.status === 409
-        ? `Already saved:\n${application.company}\n${application.jobTitle}`
-        : `Saved on server:\n${application.company}\n${application.jobTitle}\n${fileName}`
+        ? `${data.error || 'Already saved'}:\n${application.company}\n${application.jobTitle}`
+        : `Queued on server:\n${application.jobTitle}\nWatch the dashboard for analysis status.`
     });
   } catch (error) {
     if (error.name === 'AbortError') {
       await writeState(tabId, { busy: false, phase: 'stopped', message: 'Stopped.' });
       return;
     }
-    const hint = /Failed to fetch|NetworkError|ERR_CONNECTION/i.test(error.message)
-      ? '\n\nixBrowser cannot reach 127.0.0.1 through the proxy. Use the public tunnel URL from npm run tunnel, or add 127.0.0.1 to this profile’s proxy bypass list and reopen the profile.'
-      : '';
+    const hint = networkHint(apiUrl, error);
     await writeState(tabId, {
       busy: false,
       phase: 'error',

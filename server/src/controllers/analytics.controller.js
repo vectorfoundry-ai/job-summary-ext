@@ -15,7 +15,7 @@ export async function overview(req, res, next) {
     if (start) match.appliedDate = { $gte: start, $lte: end };
 
     const rows = await Application.find(match)
-      .select('status appliedDate company jobUrl primaryTechnology')
+      .select('status appliedDate company jobUrl primaryTechnology analysisStatus')
       .lean();
 
     let timelineStart = start;
@@ -41,6 +41,7 @@ export async function overview(req, res, next) {
     const technologies = new Map();
 
     for (const row of rows) {
+      if (row.analysisStatus && row.analysisStatus !== 'ready') continue;
       const st = STATUSES.includes(row.status) ? row.status : 'applied';
       status[st] += 1;
       const day = toLocalYmd(row.appliedDate);
@@ -67,7 +68,7 @@ export async function overview(req, res, next) {
       technologies.set(techName, (technologies.get(techName) || 0) + 1);
     }
 
-    const total = rows.length;
+    const total = status.applied + status.intro + status.tech + status.offer;
     const replied = status.intro + status.tech + status.offer;
     const replyRate = total ? Number(((replied / total) * 100).toFixed(1)) : 0;
     const timeline = [...timelineMap.values()];

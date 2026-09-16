@@ -1,5 +1,6 @@
 import { unlink } from 'node:fs/promises';
 import { Application } from '../models/Application.js';
+import { cancelAnalysis, queueApplication } from '../services/analysis.queue.js';
 import { renameSummaryFile } from '../services/file.service.js';
 import { buildSummaryFilename } from '../utils/sanitizeFilename.js';
 
@@ -58,7 +59,7 @@ export async function updateApplication(req, res, next) {
     Object.assign(row, changes);
 
     const nextName = buildSummaryFilename(row.company, row.jobTitle);
-    if (nextName !== row.fileName && (changes.jobTitle || changes.company)) {
+    if (row.filePath && nextName !== row.fileName && (changes.jobTitle || changes.company)) {
       try {
         const renamed = await renameSummaryFile(row.filePath, nextName);
         row.fileName = renamed.fileName;
@@ -75,9 +76,10 @@ export async function updateApplication(req, res, next) {
 
 export async function deleteApplication(req, res, next) {
   try {
+    await cancelAnalysis(req.params.id);
     const row = await Application.findByIdAndDelete(req.params.id);
     if (!row) return res.status(404).json({ error: 'Application not found' });
-    await unlink(row.filePath).catch(() => {});
+    if (row.filePath) await unlink(row.filePath).catch(() => {});
     res.status(204).end();
   } catch (error) { next(error); }
 }
@@ -86,6 +88,46 @@ export async function downloadSummary(req, res, next) {
   try {
     const row = await Application.findById(req.params.id);
     if (!row) return res.status(404).json({ error: 'Application not found' });
+    if ((row.analysisStatus || 'ready') !== 'ready' || !row.filePath) {
+      return res.status(409).json({ error: 'Summary is not ready yet' });
+    }
     res.download(row.filePath, row.fileName);
+  } catch (error) { next(error); }
+}
+
+export async function retryAnalysis(req, res, next) {
+  try {
+    const row = await queueApplication(req.params.id);
+    if (!row) return res.status(404).json({ error: 'Application not found' });
+    res.json(row);
+  } catch (error) { next(error); }
+}
+
+export async function cancelApplicationAnalysis(req, res, next) {
+  try {
+    const row = await cancelAnalysis(req.params.id);
+    if (!row) return res.status(404).json({ error: 'Application not found' });
+    res.json(row);
+  } catch (error) { next(error); }
+}
+
+export async function analysisOverview(_req, res, next) {
+  try {
+    const [queued, running, error, stopped, lastFailed] = await Promise.all([
+      Application.countDocuments({ analysisStatus: 'queued' }),
+      Application.countDocuments({ analysisStatus: 'running' }),
+      Application.countDocuments({ analysisStatus: 'error' }),
+      Application.countDocuments({ analysisStatus: 'stopped' }),
+      Application.findOne({ analysisStatus: 'error' }).sort({ updatedAt: -1 }).select('analysisError jobTitle company updatedAt')
+    ]);
+    res.json({
+      queued,
+      running,
+      error,
+      stopped,
+      lastError: lastFailed?.analysisError || '',
+      lastFailedAt: lastFailed?.updatedAt || null,
+      lastFailedJob: lastFailed ? `${lastFailed.jobTitle} — ${lastFailed.company}` : ''
+    });
   } catch (error) { next(error); }
 }

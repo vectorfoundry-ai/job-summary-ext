@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { STATUSES, formatAppliedDate, hostname, renderSummaryText, toDateInput } from '../format.js';
+import { STATUSES, formatAppliedDate, hostname, isSummaryReady, renderSummaryText, toDateInput } from '../format.js';
 import { Icon } from './Icon.jsx';
 import { Modal } from './Modal.jsx';
 import { StatCard } from './StatCard.jsx';
-import { StatusBadge } from './StatusBadge.jsx';
+import { AnalysisBadge, StatusBadge } from './StatusBadge.jsx';
 
-export function ApplicationsView({ rows, analytics, query, status, onQuery, onStatus, onChanged }) {
+export function ApplicationsView({ rows, analytics, analysis, query, status, onQuery, onStatus, onChanged }) {
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [saving, setSaving] = useState(false);
   const counts = analytics?.status || {};
+  const failed = analysis?.error ?? 0;
+  const inFlight = (analysis?.queued ?? 0) + (analysis?.running ?? 0);
 
   const viewText = useMemo(() => (viewing ? renderSummaryText(viewing) : ''), [viewing]);
 
@@ -44,6 +46,26 @@ export function ApplicationsView({ rows, analytics, query, status, onQuery, onSt
     }
   }
 
+  async function retryRow(row) {
+    setSaving(true);
+    try {
+      await api.retry(row._id);
+      await onChanged();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelRow(row) {
+    setSaving(true);
+    try {
+      await api.cancelAnalysis(row._id);
+      await onChanged();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <>
       <section className="hero">
@@ -52,6 +74,16 @@ export function ApplicationsView({ rows, analytics, query, status, onQuery, onSt
           <p className="muted">Every job you summarized, the company it went to, and where it stands.</p>
         </div>
       </section>
+
+      {failed > 0 ? (
+        <div className="warn">
+          <b>{failed} summar{failed === 1 ? 'y' : 'ies'} failed.</b> Ollama is down or ran out of memory. Fix Ollama, then click Retry.
+          {analysis?.lastError ? <p className="errorDetail">{analysis.lastFailedJob ? `${analysis.lastFailedJob}: ` : ''}{analysis.lastError}</p> : null}
+        </div>
+      ) : null}
+      {inFlight > 0 ? (
+        <p className="muted">{inFlight} summar{inFlight === 1 ? 'y' : 'ies'} still analyzing in the background.</p>
+      ) : null}
 
       <div className="statGrid compact">
         <StatCard label="Total" value={analytics?.total ?? 0} />
@@ -86,6 +118,7 @@ export function ApplicationsView({ rows, analytics, query, status, onQuery, onSt
               <th>Company</th>
               <th>Job link</th>
               <th>Summary</th>
+              <th>Analysis</th>
               <th>Status</th>
               <th>Applied</th>
               <th></th>
@@ -94,39 +127,63 @@ export function ApplicationsView({ rows, analytics, query, status, onQuery, onSt
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="7" className="empty">
+                <td colSpan="8" className="empty">
                   No applications yet. Open a job posting and click <b>Generate Summary</b> in the Chrome extension.
                 </td>
               </tr>
-            ) : rows.map((row) => (
-              <tr key={row._id}>
-                <td className="titleCell">{row.jobTitle}</td>
-                <td>{row.company}</td>
-                <td>
-                  <a className="jobLink" href={row.jobUrl} target="_blank" rel="noreferrer">
-                    {hostname(row.jobUrl)} <Icon name="external" size={13} />
-                  </a>
-                </td>
-                <td className="actions">
-                  <button className="link iconOnly" type="button" onClick={() => setViewing(row)} aria-label="View summary" title="View">
-                    <Icon name="eye" size={15} />
-                  </button>
-                  <a className="iconOnly" href={api.downloadUrl(row._id)} aria-label="Download summary" title="Download">
-                    <Icon name="download" size={15} />
-                  </a>
-                </td>
-                <td><StatusBadge status={row.status} /></td>
-                <td className="nowrap">{formatAppliedDate(row.appliedDate)}</td>
-                <td className="actions">
-                  <button className="link iconOnly" type="button" onClick={() => setEditing({ ...row, appliedDate: toDateInput(row.appliedDate) })} aria-label="Edit application" title="Edit">
-                    <Icon name="edit" size={15} />
-                  </button>
-                  <button className="danger iconOnly" type="button" onClick={() => setDeleting(row)} aria-label="Delete application" title="Delete">
-                    <Icon name="trash" size={15} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            ) : rows.map((row) => {
+              const ready = isSummaryReady(row);
+              const analyzing = row.analysisStatus === 'queued' || row.analysisStatus === 'running';
+              const canRetry = row.analysisStatus === 'error' || row.analysisStatus === 'stopped';
+              return (
+                <tr key={row._id}>
+                  <td className="titleCell">{row.jobTitle}</td>
+                  <td>{row.company}</td>
+                  <td>
+                    <a className="jobLink" href={row.jobUrl} target="_blank" rel="noreferrer">
+                      {hostname(row.jobUrl)} <Icon name="external" size={13} />
+                    </a>
+                  </td>
+                  <td className="actions">
+                    <button className="link iconOnly" type="button" onClick={() => setViewing(row)} disabled={!ready} aria-label="View summary" title={ready ? 'View' : 'Summary not ready'}>
+                      <Icon name="eye" size={15} />
+                    </button>
+                    {ready ? (
+                      <a className="iconOnly" href={api.downloadUrl(row._id)} aria-label="Download summary" title="Download">
+                        <Icon name="download" size={15} />
+                      </a>
+                    ) : (
+                      <button className="link iconOnly" type="button" disabled aria-label="Download summary" title="Summary not ready">
+                        <Icon name="download" size={15} />
+                      </button>
+                    )}
+                  </td>
+                  <td>
+                    <AnalysisBadge status={row.analysisStatus} error={row.analysisError} />
+                  </td>
+                  <td><StatusBadge status={row.status} /></td>
+                  <td className="nowrap">{formatAppliedDate(row.appliedDate)}</td>
+                  <td className="actions">
+                    {canRetry ? (
+                      <button className="link iconOnly" type="button" onClick={() => retryRow(row)} disabled={saving} aria-label="Retry analysis" title="Retry analysis">
+                        <Icon name="refresh" size={15} />
+                      </button>
+                    ) : null}
+                    {analyzing ? (
+                      <button className="link iconOnly" type="button" onClick={() => cancelRow(row)} disabled={saving} aria-label="Stop analysis" title="Stop analysis">
+                        <Icon name="x" size={15} />
+                      </button>
+                    ) : null}
+                    <button className="link iconOnly" type="button" onClick={() => setEditing({ ...row, appliedDate: toDateInput(row.appliedDate) })} aria-label="Edit application" title="Edit">
+                      <Icon name="edit" size={15} />
+                    </button>
+                    <button className="danger iconOnly" type="button" onClick={() => setDeleting(row)} aria-label="Delete application" title="Delete">
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </section>

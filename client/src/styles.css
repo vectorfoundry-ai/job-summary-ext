@@ -201,8 +201,9 @@ a, .link {
   border-radius: 8px;
 }
 
-.iconOnly:hover {
-  background: #1c2330;
+.iconOnly:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .badge {
@@ -218,6 +219,27 @@ a, .link {
 .badge-intro { background: #4a3410; color: #fbbf24; }
 .badge-tech { background: #3b2a63; color: #c4b5fd; }
 .badge-offer { background: #163c2b; color: #4ade80; }
+.badge-analysis-queued { background: #2a303b; color: #cdd5e3; }
+.badge-analysis-running { background: #1d3a73; color: #9ec0ff; }
+.badge-analysis-ready { background: #163c2b; color: #4ade80; }
+.badge-analysis-error { background: #4a1d1d; color: #ff8b8b; }
+.badge-analysis-stopped { background: #3a3424; color: #e6c07b; }
+
+.warn {
+  padding: 12px 15px;
+  border: 1px solid #7a5a20;
+  background: #2a2214;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  color: #f0d9a8;
+}
+.warn b { color: #ffd789; }
+.warn .errorDetail {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #cbb892;
+  white-space: pre-wrap;
+}
 
 .range {
   display: flex;

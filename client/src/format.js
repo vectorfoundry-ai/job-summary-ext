@@ -9,6 +9,22 @@ export function statusLabel(value) {
   return STATUSES.find((s) => s.value === value)?.label || value;
 }
 
+export const ANALYSIS_STATUSES = {
+  queued: 'Queued',
+  running: 'Analyzing',
+  ready: 'Ready',
+  error: 'Failed',
+  stopped: 'Stopped'
+};
+
+export function analysisLabel(value) {
+  return ANALYSIS_STATUSES[value] || 'Ready';
+}
+
+export function isSummaryReady(row) {
+  return !row?.analysisStatus || row.analysisStatus === 'ready';
+}
+
 export function formatAppliedDate(value) {
   if (!value) return '—';
   return new Date(value).toLocaleDateString('en-US', {

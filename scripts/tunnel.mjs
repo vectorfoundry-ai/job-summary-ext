@@ -27,13 +27,16 @@ function writeConfig(publicUrl) {
 }
 
 await waitForTarget();
-await writeConfig('');
 
-const child = spawn('npx', ['--yes', 'cloudflared', 'tunnel', '--url', target], {
-  cwd: root,
-  shell: true,
-  stdio: ['ignore', 'pipe', 'pipe']
-});
+const child = spawn(
+  'npx',
+  ['--yes', 'cloudflared', 'tunnel', '--protocol', 'http2', '--url', target],
+  {
+    cwd: root,
+    shell: true,
+    stdio: ['ignore', 'pipe', 'pipe']
+  }
+);
 
 let found = '';
 function onChunk(buf) {
@@ -51,6 +54,5 @@ function onChunk(buf) {
 child.stdout.on('data', onChunk);
 child.stderr.on('data', onChunk);
 child.on('exit', (code) => {
-  writeConfig('').catch(() => {});
   process.exit(code ?? 1);
 });

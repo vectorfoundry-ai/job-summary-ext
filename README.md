@@ -2,8 +2,8 @@
 
 A focused job-application tracker with three pieces:
 
-- Chrome extension: a side panel that reads the current job page URL and visible job description. Each tab has its own session, so you can generate summaries on several tabs at once.
-- Express API: analyzes the job with local Ollama, writes the required `.txt` summary, and saves metadata in MongoDB.
+- Chrome extension: a side panel that captures the job page and queues analysis on the server. Each tab has its own session.
+- Express API: saves the page text immediately, then analyzes with local Ollama in the background, writes the `.txt` summary, and stores metadata in MongoDB.
 - React dashboard: applications table plus analytics.
 
 ## Stack
@@ -23,7 +23,7 @@ A focused job-application tracker with three pieces:
 5. Run `npm run dev`.
 6. Open `http://127.0.0.1:5173` for the dashboard (use this address in ixBrowser; `localhost` is proxied and will fail).
 6. In Chrome or ixBrowser, open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the `extension/` folder.
-7. Open a job posting, click the extension icon to open the **side panel**, then click **Generate Summary**. Each tab has its own session, so you can start another job in a second tab while the first one is still running.
+7. Open a job posting, click the extension icon to open the **side panel**, then click **Generate Summary**. The job is saved immediately; Ollama analysis continues on the server even if you close the browser. Watch **Analysis** on the dashboard (Queued / Analyzing / Ready / Failed).
 
 ### ixBrowser
 
@@ -41,18 +41,20 @@ Alternatively, edit the profile → Proxy → enable Bypass list → add `127.0.
 
 ## Result of Generate Summary
 
-A successful click creates both:
+A click queues the job immediately:
 
-- MongoDB application record with title, company, file name, applied date, and status=`applied`.
-- `server/uploads/[company]-[role title].txt` with the exact required output structure.
+- MongoDB application record with the page text (`sourceText`), applied date, and pipeline status=`applied`.
+- Background Ollama analysis, then `server/uploads/[company]-[role title].txt` when it succeeds.
+
+If Ollama fails, the row stays on the dashboard as **Failed** with the error text. Fix Ollama and click Retry — you do not need to reopen the job page.
 
 The job URL is unique (tracking parameters stripped) to prevent accidental duplicate saves from repeated clicks.
 
-Status values are `applied`, `intro`, `tech`, and `offer`.
+Pipeline status values are `applied`, `intro`, `tech`, and `offer`. Analysis status values are `queued`, `running`, `ready`, `error`, and `stopped`.
 
 ## Dashboard
 
-- **Applications**: search, filter by status, view/download the summary, edit title/company/status/date, delete.
+- **Applications**: search, filter by status, analysis badge (Queued / Analyzing / Ready / Failed), retry failed jobs, view/download the summary, edit title/company/status/date, delete.
 - **Analytics**: date ranges, bids-per-day stacked chart, reply rate, job platforms (Indeed, Dice, and other link domains), company breakdown.
 
 Profiles, resumes, and cover letters are not part of this project.
@@ -61,7 +63,10 @@ Profiles, resumes, and cover letters are not part of this project.
 
 - `POST /api/summaries`
 - `GET /api/applications`
+- `GET /api/applications/analysis-overview`
 - `GET /api/applications/:id`
+- `POST /api/applications/:id/retry`
+- `POST /api/applications/:id/cancel`
 - `PATCH /api/applications/:id`
 - `DELETE /api/applications/:id`
 - `GET /api/applications/:id/download`

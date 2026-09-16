@@ -5,6 +5,7 @@ import { renderSummary } from '../src/services/summary.service.js';
 import { eachLocalDay, parseRange, toLocalYmd } from '../src/utils/dateRange.js';
 import { normalizeJobUrl } from '../src/utils/normalizeUrl.js';
 import { jobPlatformFromUrl } from '../src/utils/jobPlatform.js';
+import { placeholderCompany, placeholderTitle } from '../src/utils/placeholders.js';
 
 test('builds Windows-safe required filename', () => {
   assert.equal(
@@ -54,4 +55,9 @@ test('maps job links to known platforms', () => {
 test('keeps unknown job hosts as their domain', () => {
   assert.deepEqual(jobPlatformFromUrl('https://careers.acme.com/jobs/42'), { domain: 'careers.acme.com', name: 'careers.acme.com' });
   assert.deepEqual(jobPlatformFromUrl('not-a-url'), { domain: 'unknown', name: 'Unknown' });
+});
+
+test('builds placeholders from page title and job URL', () => {
+  assert.equal(placeholderTitle('Senior Python Engineer | Acme', 'https://www.indeed.com/viewjob?jk=1'), 'Senior Python Engineer | Acme');
+  assert.equal(placeholderCompany('https://www.indeed.com/viewjob?jk=1'), 'indeed.com');
 });

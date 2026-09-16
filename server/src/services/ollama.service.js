@@ -90,8 +90,13 @@ function parseJsonContent(content) {
   }
 }
 
-function ollamaError(error, baseUrl, model) {
+function ollamaError(error, baseUrl, model, userSignal) {
   const cause = error.cause?.code || error.cause?.message || error.message;
+  if (userSignal?.aborted) {
+    const stopped = new Error('Stopped.');
+    stopped.name = 'AbortError';
+    return stopped;
+  }
   if (error.name === 'TimeoutError' || error.name === 'AbortError') {
     return new Error(`Ollama timed out after waiting for ${model}`);
   }
@@ -109,12 +114,15 @@ function isGpuMemoryError(message) {
   return /out-of-memory|ErrorOutOfDeviceMemory|Vulkan|failed to allocate|unable to allocate|0xc0000409|projector CPU offload/i.test(message);
 }
 
-async function chat(baseUrl, body, timeoutMs) {
+async function chat(baseUrl, body, timeoutMs, userSignal) {
+  const signal = userSignal
+    ? AbortSignal.any([AbortSignal.timeout(timeoutMs), userSignal])
+    : AbortSignal.timeout(timeoutMs);
   const response = await fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs)
+    signal
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -133,7 +141,7 @@ async function unloadModel(baseUrl, model) {
   }).catch(() => {});
 }
 
-export async function analyzeJob({ pageText, jobUrl }) {
+export async function analyzeJob({ pageText, jobUrl, signal } = {}) {
   const baseUrl = (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
   const model = process.env.OLLAMA_MODEL || 'qwen3.5:4b';
   const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 180000);
@@ -163,12 +171,18 @@ export async function analyzeJob({ pageText, jobUrl }) {
 
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
+    if (signal?.aborted) {
+      const stopped = new Error('Stopped.');
+      stopped.name = 'AbortError';
+      throw stopped;
+    }
     try {
-      const payload = await chat(baseUrl, buildBody(), timeoutMs);
+      const payload = await chat(baseUrl, buildBody(), timeoutMs, signal);
       const content = payload.message?.content || payload.message?.thinking || payload.response;
       return withDefaults(parseJsonContent(content));
     } catch (error) {
-      lastError = error.status || error.statusCode ? error : ollamaError(error, baseUrl, model);
+      lastError = error.status || error.statusCode ? error : ollamaError(error, baseUrl, model, signal);
+      if (lastError.name === 'AbortError') throw lastError;
       if (!isRetryable(lastError.message) || attempt === 3) throw lastError;
       await unloadModel(baseUrl, model);
       if (isGpuMemoryError(lastError.message)) {

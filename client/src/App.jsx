@@ -16,6 +16,7 @@ export function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 250);
@@ -26,14 +27,16 @@ export function App() {
     try {
       setError('');
       setRefreshing(true);
-      const [apps, stats, lifetime] = await Promise.all([
+      const [apps, stats, lifetime, overview] = await Promise.all([
         api.applications(debouncedQuery, status),
         api.analytics(range),
-        api.analytics('all')
+        api.analytics('all'),
+        api.analysisOverview()
       ]);
       setRows(apps);
       setAnalytics(stats);
       setLifetime(lifetime);
+      setAnalysis(overview);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -43,6 +46,13 @@ export function App() {
   }
 
   useEffect(() => { refresh(); }, [debouncedQuery, status, range]);
+
+  const analysisBusy = (analysis?.queued ?? 0) + (analysis?.running ?? 0) > 0;
+  useEffect(() => {
+    if (!analysisBusy) return undefined;
+    const timer = setInterval(() => { refresh(); }, 4000);
+    return () => clearInterval(timer);
+  }, [analysisBusy, debouncedQuery, status, range]);
 
   return (
     <main>
@@ -73,6 +83,7 @@ export function App() {
         <ApplicationsView
           rows={rows}
           analytics={lifetime}
+          analysis={analysis}
           query={query}
           status={status}
           onQuery={setQuery}
