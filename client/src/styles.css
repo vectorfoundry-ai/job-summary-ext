@@ -165,7 +165,40 @@ nav button.active {
   padding: 11px 12px;
 }
 
-.tableWrap { overflow: auto; padding: 0; }
+.tableWrap {
+  overflow: auto;
+  padding: 0;
+  max-height: min(62vh, calc(100vh - 280px));
+  min-height: 240px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #4b566c #11151c;
+}
+
+.tableWrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tableWrap::-webkit-scrollbar-track {
+  background: #11151c;
+  border-radius: 0 12px 12px 0;
+}
+
+.tableWrap::-webkit-scrollbar-thumb {
+  background: #4b566c;
+  border-radius: 99px;
+  border: 2px solid #11151c;
+}
+
+.tableWrap::-webkit-scrollbar-thumb:hover {
+  background: #65718a;
+}
+
+.tableWrap::-webkit-scrollbar-corner {
+  background: #11151c;
+}
 
 table {
   width: 100%;
@@ -186,6 +219,19 @@ th {
   letter-spacing: 0.06em;
   color: #8b97ab;
   font-weight: 600;
+}
+
+.tableWrap table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.tableWrap th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #141821;
+  box-shadow: 0 1px 0 #242a36;
 }
 
 .titleCell { font-weight: 600; color: #fff; max-width: 340px; }
