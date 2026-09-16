@@ -107,11 +107,15 @@ function ollamaError(error, baseUrl, model, userSignal) {
 }
 
 function isRetryable(message) {
-  return /Cannot reach Ollama|ECONNRESET|fetch failed|model may still be loading|out-of-memory|failed to allocate|unable to allocate|ErrorOutOfDeviceMemory|Vulkan|llama-server process has terminated|0xc0000409|projector CPU offload/i.test(message);
+  return /Cannot reach Ollama|ECONNRESET|fetch failed|model may still be loading|out-of-memory|failed to allocate|unable to allocate|ErrorOutOfDeviceMemory|Vulkan|llama-server process has terminated|0xc0000409|projector CPU offload|CPU_REPACK/i.test(message);
+}
+
+function isCpuAllocError(message) {
+  return /CPU_REPACK|ggml_backend_cpu_buffer|unable to allocate CPU/i.test(message);
 }
 
 function isGpuMemoryError(message) {
-  return /out-of-memory|ErrorOutOfDeviceMemory|Vulkan|failed to allocate|unable to allocate|0xc0000409|projector CPU offload/i.test(message);
+  return /ErrorOutOfDeviceMemory|Vulkan|0xc0000409|projector CPU offload/i.test(message);
 }
 
 async function chat(baseUrl, body, timeoutMs, userSignal) {
@@ -141,16 +145,26 @@ async function unloadModel(baseUrl, model) {
   }).catch(() => {});
 }
 
+async function unloadLoadedModels(baseUrl) {
+  const response = await fetch(`${baseUrl}/api/ps`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+  if (!response?.ok) return;
+  const payload = await response.json().catch(() => ({}));
+  const models = Array.isArray(payload.models) ? payload.models : [];
+  await Promise.all(models.map((item) => unloadModel(baseUrl, item.name || item.model)));
+}
+
 export async function analyzeJob({ pageText, jobUrl, signal } = {}) {
   const baseUrl = (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
   const model = process.env.OLLAMA_MODEL || 'qwen3.5:4b';
-  const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 180000);
-  let numCtx = Math.max(2048, Number(process.env.OLLAMA_NUM_CTX || 4096));
+  const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 360000);
+  let numCtx = Math.max(1024, Number(process.env.OLLAMA_NUM_CTX || 2048));
   const gpuEnv = process.env.OLLAMA_NUM_GPU;
   let numGpu = gpuEnv === undefined || gpuEnv === '' ? null : Number(gpuEnv);
-  const input = `Source URL: ${jobUrl}\n\nJOB PAGE TEXT:\n${pageText}`;
+  const source = String(pageText || '');
 
   function buildBody() {
+    const maxChars = numCtx <= 1024 ? 5000 : numCtx <= 2048 ? 8000 : 12000;
+    const input = `Source URL: ${jobUrl}\n\nJOB PAGE TEXT:\n${source.slice(0, maxChars)}`;
     const options = { temperature: 0, num_ctx: numCtx };
     if (Number.isFinite(numGpu)) options.num_gpu = numGpu;
     return {
@@ -167,8 +181,6 @@ export async function analyzeJob({ pageText, jobUrl, signal } = {}) {
     };
   }
 
-  if (numGpu === 0) await unloadModel(baseUrl, model);
-
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     if (signal?.aborted) {
@@ -184,10 +196,16 @@ export async function analyzeJob({ pageText, jobUrl, signal } = {}) {
       lastError = error.status || error.statusCode ? error : ollamaError(error, baseUrl, model, signal);
       if (lastError.name === 'AbortError') throw lastError;
       if (!isRetryable(lastError.message) || attempt === 3) throw lastError;
+      await unloadLoadedModels(baseUrl);
       await unloadModel(baseUrl, model);
-      if (isGpuMemoryError(lastError.message)) {
-        numGpu = 0;
-        numCtx = Math.min(numCtx, 4096);
+      if (isCpuAllocError(lastError.message)) {
+        numGpu = null;
+        numCtx = Math.min(numCtx, 2048);
+      } else if (isGpuMemoryError(lastError.message)) {
+        numCtx = Math.min(numCtx, 1024);
+        numGpu = null;
+      } else {
+        numCtx = Math.max(1024, Math.min(numCtx, 2048));
       }
       await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
     }

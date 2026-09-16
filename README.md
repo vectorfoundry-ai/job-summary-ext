@@ -18,7 +18,7 @@ A focused job-application tracker with three pieces:
 
 1. Install Node 24, MongoDB, and [Ollama](https://ollama.com).
 2. Pull a model, for example `ollama pull qwen3.5:4b`.
-3. Copy `server/.env.example` to `server/.env` if needed. Default is `OLLAMA_URL=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3.5:4b`, `OLLAMA_NUM_CTX=4096`, and `OLLAMA_NUM_GPU=0` (CPU). The 4B vision model can exhaust a 4 GB GPU over Vulkan; set `OLLAMA_NUM_GPU` higher only if you have enough VRAM.
+3. Copy `server/.env.example` to `server/.env` if needed. Default is `OLLAMA_URL=http://127.0.0.1:11434`, `OLLAMA_MODEL=qwen3.5:4b`, and `OLLAMA_NUM_CTX=2048`. Leave `OLLAMA_NUM_GPU` unset so Ollama uses the GPU. Forcing `OLLAMA_NUM_GPU=0` loads the whole model in RAM and can fail with `CPU_REPACK` on this machine.
 4. From the repo root run `npm run install:all`.
 5. Run `npm run dev`.
 6. Open `http://127.0.0.1:5173` for the dashboard (use this address in ixBrowser; `localhost` is proxied and will fail).
