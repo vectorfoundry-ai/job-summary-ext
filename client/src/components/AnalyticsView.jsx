@@ -41,7 +41,7 @@ export function AnalyticsView({ analytics, range, onRange }) {
   }, [analytics, range]);
 
   return (
-    <>
+    <div className="analytics">
       <section className="hero">
         <div>
           <h2>Analytics</h2>
@@ -126,11 +126,11 @@ export function AnalyticsView({ analytics, range, onRange }) {
                 dataKey="date"
                 tickFormatter={chartTick}
                 interval={tickInterval}
-                tick={{ fill: '#8b97ab', fontSize: 12 }}
+                tick={{ fill: '#8b97ab', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis allowDecimals={false} tick={{ fill: '#8b97ab', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fill: '#8b97ab', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ background: '#151922', border: '1px solid #2b323f', borderRadius: 8 }}
                 labelFormatter={chartTick}
@@ -258,6 +258,6 @@ export function AnalyticsView({ analytics, range, onRange }) {
       </section>
 
       <p className="footnote">{footer}</p>
-    </>
+    </div>
   );
 }

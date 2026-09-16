@@ -221,9 +221,18 @@ th {
   font-weight: 600;
 }
 
+.tableWrap {
+  font-size: 12px;
+}
+
 .tableWrap table {
   border-collapse: separate;
   border-spacing: 0;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 8px 12px;
 }
 
 .tableWrap th {
@@ -232,6 +241,17 @@ th {
   z-index: 1;
   background: #141821;
   box-shadow: 0 1px 0 #242a36;
+  font-size: 10px;
+}
+
+.tableWrap .badge {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.tableWrap .iconOnly {
+  width: 26px;
+  height: 26px;
 }
 
 .titleCell { font-weight: 600; color: #fff; max-width: 340px; }
@@ -337,6 +357,11 @@ a, .link {
 }
 
 .chart { padding: 20px 22px 12px; }
+
+.analytics .small,
+.analytics .muted {
+  font-size: 12px;
+}
 .chartHead {
   display: flex;
   justify-content: space-between;
@@ -350,7 +375,7 @@ a, .link {
   gap: 14px;
   margin-top: 10px;
   color: #9eabc0;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -367,12 +392,12 @@ a, .link {
   gap: 16px;
 }
 
-.funnel { padding-top: 8px; }
+.funnel { padding-top: 8px; font-size: 12px; }
 .funnelRow {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 10px 0;
+  padding: 7px 0;
   border-bottom: 1px solid #242a36;
 }
 
@@ -381,7 +406,7 @@ a, .link {
   grid-template-columns: minmax(96px, 1.1fr) minmax(72px, 1.4fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
+  padding: 7px 0;
   border-bottom: 1px solid #242a36;
 }
 
@@ -393,7 +418,7 @@ a, .link {
 }
 
 .platformMeta span { font-weight: 600; }
-.platformMeta small { color: #8b97ab; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.platformMeta small { color: #8b97ab; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .platformTrack {
   height: 8px;
@@ -408,13 +433,19 @@ a, .link {
   background: #3b82f6;
 }
 
-.innerTable { overflow: auto; margin-top: 10px; }
+.innerTable {
+  overflow: auto;
+  margin-top: 10px;
+  font-size: 12px;
+}
 .innerTable table { min-width: 480px; }
-.innerTable th, .innerTable td { padding: 10px 8px; }
+.innerTable th,
+.innerTable td { padding: 8px 12px; }
+.innerTable th { font-size: 10px; }
 
 .footnote {
   color: #7d8aa0;
-  font-size: 13px;
+  font-size: 12px;
   margin-top: 4px;
 }
 
